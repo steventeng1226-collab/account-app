@@ -40,6 +40,26 @@ st.markdown("""
 .styles_viewerBadge__1yB5_,
 iframe[title="streamlit_analytics"] { display:none !important; }
 
+/* ══ 強制隱藏右下角廠商 badge（多層保險） ══ */
+[class*="viewerBadge"] { display:none !important; visibility:hidden !important; }
+[class*="badge"] { display:none !important; }
+a[href*="streamlit.io"] { display:none !important; }
+a[href*="streamlit.app"] { display:none !important; }
+div[class*="styles_viewerBadge"] { display:none !important; }
+#badge-container { display:none !important; }
+.badge-container { display:none !important; }
+
+/* ══ 終極保險：用背景色遮罩蓋住右下角 ══ */
+body::after {
+    content: '';
+    position: fixed;
+    bottom: 0; right: 0;
+    width: 180px; height: 56px;
+    background: #080c14;
+    z-index: 999999;
+    pointer-events: none;
+}
+
 /* ══ 全域 ══ */
 html, body, [class*="css"] { font-size:12px; }
 .main { background:#080c14; }
@@ -424,67 +444,74 @@ with t4:
 
     st.markdown('<div style="color:#60a5fa;font-size:13px;font-weight:700;margin-bottom:6px;">✏️ 新增記帳</div>', unsafe_allow_html=True)
 
-    inp_date = st.date_input("📅 日期", value=date.today())
+    # ── 第一排：日期 + 金額（並排） ──
+    col_date, col_amt = st.columns(2)
+    with col_date:
+        inp_date = st.date_input("📅 日期", value=date.today())
+    with col_amt:
+        inp_amt = st.number_input("💵 金額 *", min_value=0.0, value=0.0, step=1.0, format="%.0f")
+
+    # ── 項目名稱（單行輸入） ──
+    inp_name = st.text_input("📝 項目名稱（簡述用途）")
+
     st.divider()
 
-    # 類別
+    # ── 類別（4欄按鈕，從資料取得+預設合併） ──
     st.markdown('<div class="sec-lbl">🏷️ 類別</div>', unsafe_allow_html=True)
     ex_cats  = sorted(df['類別'].dropna().unique().tolist()) if '類別' in df.columns else []
     all_cats = list(dict.fromkeys(ex_cats + CATEGORIES))
-    rows_cat = [all_cats[i:i+4] for i in range(0, len(all_cats), 4)]
-    for row in rows_cat:
-        cols_c = st.columns(len(row))
-        for i, cat in enumerate(row):
+
+    # 固定4欄
+    N = 4
+    for row_start in range(0, len(all_cats), N):
+        row_cats = all_cats[row_start:row_start+N]
+        cols_c = st.columns(N)
+        for i in range(N):
             with cols_c[i]:
-                picked = (st.session_state.cat == cat)
-                if st.button(cat, key=f"c_{cat}",
-                             type="primary" if picked else "secondary",
-                             use_container_width=True):
-                    sel_btn('cat', cat)
+                if i < len(row_cats):
+                    cat = row_cats[i]
+                    picked = (st.session_state.cat == cat)
+                    if st.button(cat, key=f"c_{cat}",
+                                 type="primary" if picked else "secondary",
+                                 use_container_width=True):
+                        sel_btn('cat', cat)
+
     if st.session_state.cat:
-        st.markdown(f'<div style="font-size:10px;color:#3b82f6;margin:1px 0 3px;">✓ {st.session_state.cat}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size:10px;color:#3b82f6;margin:1px 0 2px;">✓ 已選：{st.session_state.cat}</div>', unsafe_allow_html=True)
 
     st.divider()
 
-    inp_name = st.text_input("📝 項目名稱")
-    inp_amt  = st.number_input("💵 金額 *", min_value=0.0, value=0.0, step=1.0, format="%.0f")
+    # ── 幣別（3欄）+ 支付方式（3欄）並排區塊 ──
+    col_cur, col_pay = st.columns(2)
 
-    st.divider()
-
-    # 幣別
-    st.markdown('<div class="sec-lbl">💱 幣別</div>', unsafe_allow_html=True)
-    cur_cols = st.columns(len(CURRENCIES))
-    for i, cur in enumerate(CURRENCIES):
-        with cur_cols[i]:
+    with col_cur:
+        st.markdown('<div class="sec-lbl">💱 幣別</div>', unsafe_allow_html=True)
+        for cur in CURRENCIES:
+            picked = (st.session_state.cur == cur)
             if st.button(cur, key=f"cur_{cur}",
-                         type="primary" if st.session_state.cur == cur else "secondary",
+                         type="primary" if picked else "secondary",
                          use_container_width=True):
                 sel_btn('cur', cur)
 
-    st.divider()
-
-    # 支付方式
-    st.markdown('<div class="sec-lbl">💳 支付方式</div>', unsafe_allow_html=True)
-    rows_pay = [PAYMENTS[i:i+3] for i in range(0, len(PAYMENTS), 3)]
-    for row in rows_pay:
-        cols_p = st.columns(len(row))
-        for i, pm in enumerate(row):
-            with cols_p[i]:
-                if st.button(pm, key=f"p_{pm}",
-                             type="primary" if st.session_state.pay == pm else "secondary",
-                             use_container_width=True):
-                    sel_btn('pay', pm)
-    if st.session_state.pay:
-        st.markdown(f'<div style="font-size:10px;color:#3b82f6;margin:1px 0 3px;">✓ {st.session_state.pay}</div>', unsafe_allow_html=True)
+    with col_pay:
+        st.markdown('<div class="sec-lbl">💳 支付方式</div>', unsafe_allow_html=True)
+        for pm in PAYMENTS:
+            picked = (st.session_state.pay == pm)
+            if st.button(pm, key=f"p_{pm}",
+                         type="primary" if picked else "secondary",
+                         use_container_width=True):
+                sel_btn('pay', pm)
 
     st.divider()
 
-    inp_note = st.text_input("💬 備註（可選）")
-    inp_file = st.file_uploader("📎 附件（收據照片，最大 10MB）", type=['jpg','jpeg','png','pdf'])
+    # ── 備註 + 附件（並排） ──
+    col_note, col_file = st.columns(2)
+    with col_note:
+        inp_note = st.text_input("💬 備註（可選）")
+    with col_file:
+        inp_file = st.file_uploader("📎 附件", type=['jpg','jpeg','png','pdf'])
 
-    st.divider()
-
-    # 換算預覽
+    # ── 換算預覽 ──
     if inp_amt > 0:
         twd = round(inp_amt * VND_RATE) if 'VND' in st.session_state.cur else round(inp_amt)
         st.markdown(f"""
@@ -494,6 +521,7 @@ with t4:
     else:
         twd = 0
 
+    # ── 提交 / 清除 ──
     sb, cb = st.columns([2,1])
     with sb:
         submitted = st.button("✅ 提交", type="primary", use_container_width=True)
@@ -506,8 +534,8 @@ with t4:
 
     if submitted:
         errs = []
-        if inp_amt <= 0:               errs.append("請輸入金額")
-        if not st.session_state.cat:  errs.append("請選擇類別")
+        if inp_amt <= 0:              errs.append("請輸入金額")
+        if not st.session_state.cat: errs.append("請選擇類別")
         if errs:
             for e in errs: st.error(f"❌ {e}")
         else:
