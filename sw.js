@@ -1,4 +1,4 @@
-const CACHE = 'account-pwa-v4';
+const CACHE = 'account-pwa-v470';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -14,8 +14,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // 資料請求不快取
-  if (e.request.url.includes('googleapis') || e.request.url.includes('script.google')) {
+  if (e.request.url.includes('googleapis') || e.request.url.includes('script.google') || e.request.url.includes('frankfurter')) {
     return;
   }
   e.respondWith(
