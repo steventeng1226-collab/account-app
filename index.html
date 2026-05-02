@@ -293,6 +293,58 @@ textarea { resize: none; height: 64px; }
   width: 100%; margin-bottom: 10px; outline: none;
 }
 
+
+/* ── Autocomplete ── */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #1e293b; border: 1px solid #3b82f6;
+  border-radius: 0 0 8px 8px; z-index: 200;
+  max-height: 200px; overflow-y: auto;
+  box-shadow: 0 8px 24px #00000060;
+}
+.autocomplete-item {
+  padding: 10px 12px; cursor: pointer;
+  border-bottom: 1px solid #1f293740;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:active { background: #2563eb; }
+.autocomplete-item .ac-name { color: #e2e8f0; font-size: 13px; font-weight: 500; }
+.autocomplete-item .ac-meta { color: #64748b; font-size: 10px; text-align: right; }
+.autocomplete-item .ac-highlight { color: #60a5fa; }
+
+
+/* ── Edit Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: #00000088; z-index: 500;
+  display: flex; align-items: flex-end;
+}
+.modal-box {
+  background: #0f172a; border: 1px solid #1e3a8a;
+  border-radius: 16px 16px 0 0;
+  width: 100%; padding: 16px 14px 32px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-title {
+  font-size: 15px; font-weight: 700; color: #e2e8f0;
+  margin-bottom: 14px; display: flex; justify-content: space-between;
+}
+.modal-close {
+  background: none; border: none; color: #64748b;
+  font-size: 20px; cursor: pointer; padding: 0 4px;
+}
+.modal-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;
+}
+.btn-danger {
+  background: #7f1d1d; border: 1px solid #ef4444;
+  color: #fca5a5; border-radius: 9px;
+  padding: 12px; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: 'Noto Sans TC', sans-serif; width: 100%;
+}
+
 /* ── Empty state ── */
 .empty { text-align: center; padding: 40px 0; color: var(--text3); font-size: 13px; }
 </style>
@@ -357,7 +409,11 @@ textarea { resize: none; height: 64px; }
 
     <div class="form-section">
       <label class="form-label">📝 項目名稱（簡述用途）</label>
-      <input type="text" id="inp-name" placeholder="例：全聯買菜">
+      <div class="autocomplete-wrap">
+        <input type="text" id="inp-name" placeholder="例：全聯買菜" autocomplete="off"
+               oninput="onNameInput(this.value)" onblur="hideAC()" onfocus="onNameInput(this.value)">
+        <div class="autocomplete-list" id="ac-list" style="display:none"></div>
+      </div>
     </div>
 
     <hr class="divider">
@@ -399,6 +455,60 @@ textarea { resize: none; height: 64px; }
 
 </div>
 
+
+<!-- Edit/Delete Modal -->
+<div class="modal-overlay" id="edit-modal" style="display:none" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">
+      <span>✏️ 編輯記錄</span>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+
+    <div class="form-section">
+      <div class="form-row">
+        <div>
+          <label class="form-label">📅 日期</label>
+          <input type="date" id="edit-date">
+        </div>
+        <div>
+          <label class="form-label">💵 金額</label>
+          <input type="number" id="edit-amt" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">📝 項目名稱</label>
+      <input type="text" id="edit-name">
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">🏷️ 類別</label>
+      <div class="pills" id="edit-pills-cat"></div>
+    </div>
+
+    <div class="form-section" style="margin-top:10px">
+      <label class="form-label">💱 幣別</label>
+      <div class="pills" id="edit-pills-cur"></div>
+    </div>
+
+    <div class="form-section" style="margin-top:10px">
+      <label class="form-label">💳 支付方式</label>
+      <div class="pills" id="edit-pills-pay"></div>
+    </div>
+
+    <div class="form-section" style="margin-top:10px">
+      <label class="form-label">💬 備註</label>
+      <textarea id="edit-note"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveEdit()">💾 儲存</button>
+      <button class="btn-danger" onclick="confirmDelete()">🗑️ 刪除</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -409,14 +519,14 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.3.2';
+const VERSION    = 'v4.6.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbwqhxkkg8oo0s_hOXo_6xbxcnmJrM3qaPOAqRqNlLncVTqJ6wsVOktSmLc2bqd2UTjW/exec';
+const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxdRZ5ImmFCUBP1cPQKizzvuPRy0kRc1zMaWKPwleYAoO5k-bw7eq9LwAxlXQgbA5cW/exec';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 const CO_KEYS    = ['代墊', '公司', '固定'];
-const CATEGORIES = ['食','住','行','育','樂','醫療','代墊','固定','越南固定支出','公司代墊','其他'];
+const CATEGORIES = ['食','住','行','育','樂','醫療','保險','固定','越南固定支出','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
 const PAYMENTS   = ['現金','信用卡','銀行轉帳','其他'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
@@ -462,6 +572,7 @@ async function loadData(force = false) {
 function parseCSV(text) {
   const lines = text.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+  console.log('📋 欄位名稱:', headers);
   return lines.slice(1).map(line => {
     const vals = splitCSVLine(line);
     const row = {};
@@ -545,15 +656,15 @@ function renderMonthly() {
   const prog = isCur ? `第 ${tDay}/${dim} 天（${pct}%）` : '完整月份';
 
   const coMask = r => CO_KEYS.some(k => (r['類別']||'').includes(k));
-  const total  = dfm.reduce((s,r) => s + r['台幣金額'], 0);
   const coSum  = dfm.filter(coMask).reduce((s,r) => s + r['台幣金額'], 0);
-  const meSum  = total - coSum;
+  const meSum  = dfm.filter(r => !coMask(r)).reduce((s,r) => s + r['台幣金額'], 0);
+  const total  = meSum; // 總支出 = 個人實支，公司代墊獨立
   const dAvg   = tDay ? Math.round(meSum / tDay) : 0;
   const est    = isCur && tDay >= 3 ? Math.round(meSum / tDay * dim) : 0;
 
-  // 類別加總
+  // 類別加總（只算個人支出，排除公司代墊）
   const catMap = {};
-  dfm.forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
+  dfm.filter(r => !coMask(r)).forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
   // 每日加總
@@ -576,20 +687,16 @@ function renderMonthly() {
 
     <div class="stat-row">
       <div class="stat-card">
-        <div class="stat-lbl">💰 總支出</div>
-        <div class="stat-val sm">${fmt(total)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-lbl">🚩 公司代墊</div>
-        <div class="stat-val sm">${fmt(coSum)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-lbl">👤 個人實支</div>
+        <div class="stat-lbl">💰 個人總支出</div>
         <div class="stat-val sm">${fmt(meSum)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-lbl">📆 日均</div>
         <div class="stat-val sm">${fmt(dAvg)}</div>
+      </div>
+      <div class="stat-card wide" style="border-color:#374151;background:#1a1a2e">
+        <div class="stat-lbl" style="color:#f59e0b">🚩 公司代墊（獨立）</div>
+        <div class="stat-val sm" style="color:#fbbf24">${fmt(coSum)}</div>
       </div>
     </div>
 
@@ -664,31 +771,27 @@ function renderTotal() {
   if (!allData.length) { page.innerHTML = '<div class="empty">📭 尚無資料</div>'; return; }
 
   const coMask = r => CO_KEYS.some(k => (r['類別']||'').includes(k));
-  const totAll = allData.reduce((s,r) => s + r['台幣金額'], 0);
   const coS    = allData.filter(coMask).reduce((s,r) => s + r['台幣金額'], 0);
-  const meS    = totAll - coS;
+  const meS    = allData.filter(r => !coMask(r)).reduce((s,r) => s + r['台幣金額'], 0);
+  const totAll = meS; // 累計總支出 = 個人實支
 
   const catMap = {};
-  allData.forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
+  allData.filter(r => !coMask(r)).forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
   const monthMap = {};
-  allData.forEach(r => { monthMap[r['年月']] = (monthMap[r['年月']]||0) + r['台幣金額']; });
+  allData.filter(r => !coMask(r)).forEach(r => { monthMap[r['年月']] = (monthMap[r['年月']]||0) + r['台幣金額']; });
   const monthEntries = Object.entries(monthMap).sort((a,b) => a[0].localeCompare(b[0]));
 
   page.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-lbl">💰 累計總支出</div>
-        <div class="stat-val sm">${fmt(totAll)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-lbl">🚩 公司代墊</div>
-        <div class="stat-val sm">${fmt(coS)}</div>
-      </div>
       <div class="stat-card wide">
-        <div class="stat-lbl">👤 個人累計實支</div>
+        <div class="stat-lbl">💰 個人累計總支出</div>
         <div class="stat-val">${fmt(meS)}</div>
+      </div>
+      <div class="stat-card wide" style="border-color:#374151;background:#1a1a2e">
+        <div class="stat-lbl" style="color:#f59e0b">🚩 公司代墊累計（獨立）</div>
+        <div class="stat-val sm" style="color:#fbbf24">${fmt(coS)}</div>
       </div>
     </div>
 
@@ -773,10 +876,11 @@ function renderList() {
   `).join('');
 
   const items = sorted.map(r => `
-    <div class="list-item">
+    <div class="list-item" onclick="openEditModal(${JSON.stringify(r).replace(/'/g,'\\'')})" style="cursor:pointer;active:opacity:.7">
       <div>
         <div class="date">${r['日期']}</div>
-        <div class="name">${r['項目名稱（簡述）']||r['項目名稱']||'－'}</div>
+        <div class="name">${getItemName(r)}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">${r['備註（可選：詳細說明或特殊情況）']||r['備註']||''}</div>
         <span class="cat">${r['類別']||''}</span>
       </div>
       <div>
@@ -791,6 +895,83 @@ function renderList() {
     ${items || '<div class="empty">這個月還沒有記錄</div>'}
     <div class="list-caption">共 ${sorted.length} 筆</div>
   `;
+}
+
+
+// ════════════════════════════════════
+//  Autocomplete
+// ════════════════════════════════════
+
+function getItemName(r) {
+  // 嘗試所有可能的欄位名稱
+  const keys = Object.keys(r);
+  const nameKey = keys.find(k => k.includes('項目') || k.includes('名稱') || k.includes('簡述'));
+  return (nameKey ? r[nameKey] : '') || '';
+}
+
+function buildHistory() {
+  // 從 allData 建立歷史紀錄，以項目名稱去重，保留最新的類別/幣別/支付
+  const map = {};
+  [...allData].reverse().forEach(r => {
+    const name = (r['項目名稱（簡述）'] || r['項目名稱'] || '').trim();
+    if (!name) return;
+    if (!map[name]) {
+      map[name] = {
+        name,
+        category: r['類別'] || '',
+        currency: r['幣別'] || '',
+        payment:  r['支付方式'] || '',
+        amount:   r['金額'] || '',
+      };
+    }
+  });
+  return Object.values(map);
+}
+
+function onNameInput(val) {
+  const list = document.getElementById('ac-list');
+  if (!val || val.length < 1) { list.style.display = 'none'; return; }
+  const q = val.toLowerCase();
+  const results = buildHistory()
+    .filter(h => h.name.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (!results.length) { list.style.display = 'none'; return; }
+  list.innerHTML = results.map(h => {
+    const hi = h.name.replace(new RegExp(val, 'gi'), m => `<span class="ac-highlight">${m}</span>`);
+    const cur = h.currency.includes('VND') ? 'VND' : h.currency.includes('USD') ? 'USD' : 'TWD';
+    return `<div class="autocomplete-item" onmousedown="selectAC(${JSON.stringify(h)})">
+      <span class="ac-name">${hi}</span>
+      <span class="ac-meta">${h.category}<br>${cur} · ${h.payment}</span>
+    </div>`;
+  }).join('');
+  list.style.display = 'block';
+}
+
+function selectAC(h) {
+  document.getElementById('inp-name').value = h.name;
+  document.getElementById('ac-list').style.display = 'none';
+  // 自動填入類別
+  if (h.category) {
+    selCat = h.category;
+  }
+  // 自動填入幣別
+  const cur = h.currency.includes('VND') ? 'VND' : h.currency.includes('USD') ? 'USD' : 'TWD';
+  selCur = cur;
+  // 自動填入支付方式
+  if (h.payment) {
+    const payMap = { '現金': '現金', '信用卡': '信用卡', '銀行轉帳': '銀行轉帳', '其他': '其他' };
+    const matched = Object.keys(payMap).find(k => h.payment.includes(k));
+    selPay = matched || '';
+  }
+  initFormPills();
+  updateTWD();
+}
+
+function hideAC() {
+  setTimeout(() => {
+    const list = document.getElementById('ac-list');
+    if (list) list.style.display = 'none';
+  }, 150);
 }
 
 // ════════════════════════════════════
@@ -889,6 +1070,145 @@ function clearForm() {
   document.getElementById('inp-note').value = '';
   document.getElementById('twd-preview').style.display = 'none';
   initForm();
+}
+
+
+// ════════════════════════════════════
+//  Edit / Delete Modal
+// ════════════════════════════════════
+let editRow = null;
+let editSelCat = '', editSelCur = 'VND', editSelPay = '';
+
+function openEditModal(r) {
+  editRow = r;
+  editSelCat = r['類別'] || '';
+  const curRaw = r['幣別'] || '';
+  editSelCur = curRaw.includes('VND') ? 'VND' : curRaw.includes('USD') ? 'USD' : 'TWD';
+  editSelPay = r['支付方式'] || '';
+  // 移除 (Wallet/Pocket...) 等括號內容
+  if (editSelPay.includes('（') || editSelPay.includes('(')) {
+    editSelPay = editSelPay.split(/[（(]/)[0].trim();
+  }
+
+  document.getElementById('edit-date').value = r['日期'] || '';
+  document.getElementById('edit-amt').value  = r['金額'] || '';
+  document.getElementById('edit-name').value = getItemName(r) || '';
+  document.getElementById('edit-note').value = r['備註（可選：詳細說明或特殊情況）'] || r['備註'] || '';
+
+  renderEditPills();
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function renderEditPills() {
+  const cats = ['（未選）', ...CATEGORIES];
+  document.getElementById('edit-pills-cat').innerHTML = cats.map(c =>
+    `<div class="pill ${c==='（未選）'&&!editSelCat?'selected':c===editSelCat?'selected':''}"
+      onclick="editSelCat='${c==='（未選）'?'':c}';renderEditPills()">${c}</div>`
+  ).join('');
+
+  document.getElementById('edit-pills-cur').innerHTML = CURRENCIES.map(c =>
+    `<div class="pill ${c===editSelCur?'selected':''}"
+      onclick="editSelCur='${c}';renderEditPills()">${c}</div>`
+  ).join('');
+
+  const pays = ['（未選）', ...PAYMENTS];
+  document.getElementById('edit-pills-pay').innerHTML = pays.map(p =>
+    `<div class="pill ${p==='（未選）'&&!editSelPay?'selected':p===editSelPay?'selected':''}"
+      onclick="editSelPay='${p==='（未選）'?'':p}';renderEditPills()">${p}</div>`
+  ).join('');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editRow = null;
+}
+
+function closeModal(e) {
+  if (e.target.id === 'edit-modal') closeEditModal();
+}
+
+async function saveEdit() {
+  if (!editRow) return;
+  const ts = editRow['時間戳記'] || '';
+  const payload = {
+    action:    'update',
+    timestamp: ts,
+    date:      document.getElementById('edit-date').value,
+    category:  editSelCat,
+    item:      document.getElementById('edit-name').value.trim(),
+    amount:    parseFloat(document.getElementById('edit-amt').value) || 0,
+    currency:  CUR_LABEL[editSelCur] || editSelCur,
+    payment:   editSelPay,
+    note:      document.getElementById('edit-note').value.trim(),
+  };
+
+  const btn = document.querySelector('#edit-modal .btn-primary');
+  btn.textContent = '⏳ 儲存中...'; btn.disabled = true;
+
+  try {
+    const iframe = getHiddenIframe();
+    const form = buildHiddenForm(payload);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    await new Promise(r => setTimeout(r, 2000));
+    showToast('✅ 已更新！', 'ok');
+    closeEditModal();
+    await loadData();
+    renderCurrentTab();
+  } catch(e) {
+    showToast('❌ 更新失敗：' + e.message, 'err');
+  } finally {
+    btn.textContent = '💾 儲存'; btn.disabled = false;
+  }
+}
+
+async function confirmDelete() {
+  if (!editRow) return;
+  if (!confirm('確定要刪除這筆記錄嗎？')) return;
+  const payload = {
+    action:    'delete',
+    timestamp: editRow['時間戳記'] || '',
+  };
+  try {
+    const form = buildHiddenForm(payload);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    await new Promise(r => setTimeout(r, 2000));
+    showToast('🗑️ 已刪除！', 'ok');
+    closeEditModal();
+    await loadData();
+    renderCurrentTab();
+  } catch(e) {
+    showToast('❌ 刪除失敗：' + e.message, 'err');
+  }
+}
+
+function getHiddenIframe() {
+  let iframe = document.getElementById('hidden-submit-frame');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'hidden-submit-frame';
+    iframe.name = 'hidden-submit-frame';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  }
+  return iframe;
+}
+
+function buildHiddenForm(payload) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = WEBHOOK;
+  form.target = 'hidden-submit-frame';
+  form.style.display = 'none';
+  for (const [k, v] of Object.entries(payload)) {
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = k; input.value = v;
+    form.appendChild(input);
+  }
+  return form;
 }
 
 // ════════════════════════════════════
