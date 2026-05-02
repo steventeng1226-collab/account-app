@@ -299,24 +299,24 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.0.0</span>
+    <span class="ver" id="ver-badge">v4.1.0</span>
   </div>
   <button id="refresh-btn" onclick="refreshData()">🔄 刷新</button>
 </div>
 
 <!-- Tabs -->
 <div id="tabs">
-  <button class="tab-btn active" onclick="switchTab('monthly')">🗓️ 當月</button>
+  <button class="tab-btn" onclick="switchTab('monthly')">🗓️ 當月</button>
   <button class="tab-btn" onclick="switchTab('total')">📉 全期</button>
   <button class="tab-btn" onclick="switchTab('list')">📋 清單</button>
-  <button class="tab-btn" onclick="switchTab('add')">✏️ 記帳</button>
+  <button class="tab-btn active" onclick="switchTab('add')">✏️ 記帳</button>
 </div>
 
 <!-- Content -->
 <div id="content">
 
   <!-- 當月 -->
-  <div class="page active" id="page-monthly">
+  <div class="page" id="page-monthly">
     <div class="loading"><div class="spinner"></div>載入中...</div>
   </div>
 
@@ -331,7 +331,7 @@ textarea { resize: none; height: 64px; }
   </div>
 
   <!-- 記帳 -->
-  <div class="page" id="page-add">
+  <div class="page active" id="page-add">
     <div class="sec-title">✏️ 新增記帳</div>
 
     <div class="form-section">
@@ -361,16 +361,10 @@ textarea { resize: none; height: 64px; }
 
     <hr class="divider">
 
-    <div class="form-section">
-      <label class="form-label">💱 幣別</label>
-      <div class="pills" id="pills-cur"></div>
-    </div>
-
-    <hr class="divider">
-
-    <div class="form-section">
-      <label class="form-label">💳 支付方式</label>
-      <div class="pills" id="pills-pay"></div>
+    <div class="form-section" style="display:flex;gap:12px;align-items:flex-start">
+      <div style="min-width:80px"><label class="form-label">💱 幣別</label><div class="pills" id="pills-cur"></div></div>
+      <div style="flex:1"><label class="form-label">💳 支付方式</label>
+      <div class="pills" id="pills-pay"></div></div>
     </div>
 
     <hr class="divider">
@@ -402,7 +396,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.0.0';
+const VERSION    = 'v4.1.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -411,7 +405,7 @@ const VND_RATE   = 0.00128;
 const CO_KEYS    = ['代墊', '公司', '固定'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','代墊','固定','越南固定支出','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
-const PAYMENTS   = ['現金','信用卡','簽帳卡','銀行轉帳','電子錢包','其他'];
+const PAYMENTS   = ['現金','信用卡','銀行轉帳','其他'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
 const PASTEL     = ['#7ec8e3','#f9c784','#a8d8a8','#f9a8d4','#c4b5fd','#fdba74','#86efac','#fda4af','#93c5fd','#fcd34d'];
 
@@ -474,7 +468,7 @@ async function refreshData() {
 // ════════════════════════════════════
 //  Tab 切換
 // ════════════════════════════════════
-let currentTab = 'monthly';
+let currentTab = 'add';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
@@ -573,11 +567,11 @@ function renderMonthly() {
     <div class="chart-row">
       <div class="chart-box">
         <div class="chart-title">類別佔比</div>
-        <canvas id="chart-pie" height="160"></canvas>
+        <canvas id="chart-pie" style="min-height:160px"></canvas>
       </div>
       <div class="chart-box">
         <div class="chart-title">每日走勢</div>
-        <canvas id="chart-bar" height="160"></canvas>
+        <canvas id="chart-bar" style="min-height:160px"></canvas>
       </div>
     </div>
 
@@ -627,7 +621,7 @@ function renderMonthly() {
         }
       });
     }
-  }, 50);
+  }, 150);
 }
 
 // ════════════════════════════════════
@@ -671,7 +665,7 @@ function renderTotal() {
     <div class="chart-row">
       <div class="chart-box">
         <div class="chart-title">全期類別佔比</div>
-        <canvas id="chart-pie2" height="160"></canvas>
+        <canvas id="chart-pie2" style="min-height:160px"></canvas>
       </div>
       <div class="chart-box" style="grid-column:span 1">
         <table class="rank-table" style="font-size:10px">
@@ -685,7 +679,7 @@ function renderTotal() {
 
     <div class="chart-box" style="margin-bottom:10px">
       <div class="chart-title">月消費趨勢</div>
-      <canvas id="chart-trend" height="150"></canvas>
+      <canvas id="chart-trend" style="min-height:150px"></canvas>
     </div>
   `;
 
@@ -951,7 +945,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ver-badge').textContent = VERSION;
   initForm();
   await loadData();
-  renderMonthly();
+  // 預設在記帳分頁，背景載入完資料後更新統計
 });
 </script>
 </body>
