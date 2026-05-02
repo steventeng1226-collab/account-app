@@ -7,7 +7,7 @@ import requests
 # ══════════════════════════════════════════
 #  設定
 # ══════════════════════════════════════════
-APP_VERSION  = "v3.2.0"
+APP_VERSION  = "v3.2.1"
 WEBHOOK_URL  = "https://script.google.com/macros/s/AKfycby25v70CU_TEdxEs9V81tJ6W-xJkg1dZNBh6ga5Bz4LpBwO8ipa1ETIDHrzPDsYV23y/exec"
 SHEET_ID    = "1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4"
 GID         = "259728202"
@@ -451,7 +451,7 @@ with t4:
         border: 1px solid #374151;
         border-radius: 7px;
         padding: 5px 10px !important;
-        color: #94a3b8;
+        color: #e2e8f0 !important;
         font-size: 12px !important;
         cursor: pointer;
         margin: 0 !important;
