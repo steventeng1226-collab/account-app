@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, date
+import requests
 
 # ══════════════════════════════════════════
 #  設定
 # ══════════════════════════════════════════
-APP_VERSION = "v3.1.0"
+APP_VERSION  = "v3.2.0"
+WEBHOOK_URL  = "https://script.google.com/macros/s/AKfycby25v70CU_TEdxEs9V81tJ6W-xJkg1dZNBh6ga5Bz4LpBwO8ipa1ETIDHrzPDsYV23y/exec"
 SHEET_ID    = "1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4"
 GID         = "259728202"
 CSV_URL     = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
@@ -551,16 +553,35 @@ with t4:
         if errs:
             for e in errs: st.error(f"❌ {e}")
         else:
-            st.success("✅ 資料準備完成！")
-            st.table(pd.DataFrame([{
-                "日期": str(inp_date),
-                "類別": inp_cat,
-                "項目": inp_name or "－",
-                "金額": f"{inp_amt:,.0f}",
-                "幣別": inp_cur,
-                "支付": inp_pay if inp_pay != "（未選）" else "未填",
-                "備註": inp_note or "－",
-                "台幣": f"{twd:,.0f}",
-                "附件": f"✅ {inp_file.name}" if inp_file else "無",
-            }]))
-            st.info("⚠️ 直接寫入 Google Sheets 需設定 Service Account，請告知是否要啟用。")
+            # 幣別格式對應（與 Google Form 一致）
+            cur_map = {'TWD': 'TWD (新台幣)', 'VND': 'VND (越南盾)', 'USD': 'USD (美元)'}
+            payload = {
+                "timestamp": datetime.now().strftime('%Y/%-m/%-d %p %I:%M:%S').replace('AM','上午').replace('PM','下午'),
+                "date":      str(inp_date),
+                "category":  inp_cat,
+                "item":      inp_name or "",
+                "amount":    inp_amt,
+                "currency":  cur_map.get(inp_cur, inp_cur),
+                "payment":   inp_pay if inp_pay != "（未選）" else "",
+                "note":      inp_note or "",
+            }
+            try:
+                res = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+                result = res.json()
+                if result.get("status") == "ok":
+                    st.success("✅ 已成功寫入 Google Sheets！")
+                    st.table(pd.DataFrame([{
+                        "日期": str(inp_date),
+                        "類別": inp_cat,
+                        "項目": inp_name or "－",
+                        "金額": f"{inp_amt:,.0f}",
+                        "幣別": inp_cur,
+                        "支付": inp_pay if inp_pay != "（未選）" else "未填",
+                        "備註": inp_note or "－",
+                        "台幣": f"{twd:,.0f}",
+                    }]))
+                    st.cache_data.clear()  # 清快取，下次讀取可看到新資料
+                else:
+                    st.error(f"❌ 寫入失敗：{result.get('msg','未知錯誤')}")
+            except Exception as ex:
+                st.error(f"❌ 連線錯誤：{ex}")
