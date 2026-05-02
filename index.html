@@ -402,7 +402,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.2.0';
+const VERSION    = 'v4.2.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -896,15 +896,43 @@ async function submitForm() {
   btn.disabled = true;
 
   try {
-    // 用 no-cors 繞過 CORS 限制（Apps Script 不回傳 CORS header）
-    await fetch(WEBHOOK, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    // no-cors 下無法讀 response，等 1.5 秒後視為成功
-    await new Promise(r => setTimeout(r, 1500));
+    // 用隱藏 iframe + form POST 完全繞過 CORS
+    const iframeId = 'hidden-submit-frame';
+    let iframe = document.getElementById(iframeId);
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = iframeId;
+      iframe.name = iframeId;
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = WEBHOOK;
+    form.target = iframeId;
+    form.style.display = 'none';
+    // Apps Script 用 e.parameter 讀取
+    const fields = {
+      timestamp: payload.timestamp,
+      date: payload.date,
+      category: payload.category,
+      item: payload.item,
+      amount: String(payload.amount),
+      currency: payload.currency,
+      payment: payload.payment,
+      note: payload.note,
+    };
+    for (const [k, v] of Object.entries(fields)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = k;
+      input.value = v;
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    await new Promise(r => setTimeout(r, 2000));
     showToast('✅ 已成功記帳！', 'ok');
     clearForm();
     await loadData();
