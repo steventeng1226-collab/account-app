@@ -434,86 +434,99 @@ with t3:
 #  新增記帳
 # ─────────────────────────────────────────
 with t4:
-    for k, v in [('cat',''), ('cur','TWD'), ('pay','')]:
-        if k not in st.session_state:
-            st.session_state[k] = v
 
-    def sel_btn(key, val):
-        st.session_state[key] = val
-        st.rerun()
+    # CSS：讓 radio 變成橫向 pill 按鈕
+    st.markdown("""
+    <style>
+    /* radio 橫向排列 */
+    div[data-testid="stRadio"] > div {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+    }
+    div[data-testid="stRadio"] > div > label {
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 7px;
+        padding: 5px 10px !important;
+        color: #94a3b8;
+        font-size: 12px !important;
+        cursor: pointer;
+        margin: 0 !important;
+        flex: 0 0 auto;
+    }
+    div[data-testid="stRadio"] > div > label:has(input:checked) {
+        background: #1d4ed8 !important;
+        border-color: #3b82f6 !important;
+        color: #fff !important;
+        font-weight: 600;
+    }
+    div[data-testid="stRadio"] > div > label > div:first-child {
+        display: none !important;
+    }
+    /* 類別 radio 小一點，4欄感覺 */
+    .cat-radio div[data-testid="stRadio"] > div > label {
+        min-width: calc(25% - 4px);
+        text-align: center;
+        justify-content: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     st.markdown('<div style="color:#60a5fa;font-size:13px;font-weight:700;margin-bottom:6px;">✏️ 新增記帳</div>', unsafe_allow_html=True)
 
-    # ── 第一排：日期 + 金額（並排） ──
-    col_date, col_amt = st.columns(2)
-    with col_date:
+    # ── 日期 + 金額 並排 ──
+    col_d, col_a = st.columns(2)
+    with col_d:
         inp_date = st.date_input("📅 日期", value=date.today())
-    with col_amt:
+    with col_a:
         inp_amt = st.number_input("💵 金額 *", min_value=0.0, value=0.0, step=1.0, format="%.0f")
 
-    # ── 項目名稱（單行輸入） ──
+    # ── 項目名稱 ──
     inp_name = st.text_input("📝 項目名稱（簡述用途）")
 
     st.divider()
 
-    # ── 類別（4欄按鈕，從資料取得+預設合併） ──
+    # ── 類別（radio 橫向 pill） ──
     st.markdown('<div class="sec-lbl">🏷️ 類別</div>', unsafe_allow_html=True)
     ex_cats  = sorted(df['類別'].dropna().unique().tolist()) if '類別' in df.columns else []
     all_cats = list(dict.fromkeys(ex_cats + CATEGORIES))
 
-    # 固定4欄
-    N = 4
-    for row_start in range(0, len(all_cats), N):
-        row_cats = all_cats[row_start:row_start+N]
-        cols_c = st.columns(N)
-        for i in range(N):
-            with cols_c[i]:
-                if i < len(row_cats):
-                    cat = row_cats[i]
-                    picked = (st.session_state.cat == cat)
-                    if st.button(cat, key=f"c_{cat}",
-                                 type="primary" if picked else "secondary",
-                                 use_container_width=True):
-                        sel_btn('cat', cat)
-
-    if st.session_state.cat:
-        st.markdown(f'<div style="font-size:10px;color:#3b82f6;margin:1px 0 2px;">✓ 已選：{st.session_state.cat}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="cat-radio">', unsafe_allow_html=True)
+    cat_sel = st.radio("類別", ["（未選）"] + all_cats,
+                        key="cat_radio", label_visibility="collapsed",
+                        horizontal=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    inp_cat = "" if cat_sel == "（未選）" else cat_sel
 
     st.divider()
 
-    # ── 幣別（3欄）+ 支付方式（3欄）並排區塊 ──
-    col_cur, col_pay = st.columns(2)
-
-    with col_cur:
-        st.markdown('<div class="sec-lbl">💱 幣別</div>', unsafe_allow_html=True)
-        for cur in CURRENCIES:
-            picked = (st.session_state.cur == cur)
-            if st.button(cur, key=f"cur_{cur}",
-                         type="primary" if picked else "secondary",
-                         use_container_width=True):
-                sel_btn('cur', cur)
-
-    with col_pay:
-        st.markdown('<div class="sec-lbl">💳 支付方式</div>', unsafe_allow_html=True)
-        for pm in PAYMENTS:
-            picked = (st.session_state.pay == pm)
-            if st.button(pm, key=f"p_{pm}",
-                         type="primary" if picked else "secondary",
-                         use_container_width=True):
-                sel_btn('pay', pm)
+    # ── 幣別 ──
+    st.markdown('<div class="sec-lbl">💱 幣別</div>', unsafe_allow_html=True)
+    inp_cur = st.radio("幣別", CURRENCIES,
+                        index=0, key="cur_radio",
+                        label_visibility="collapsed", horizontal=True)
 
     st.divider()
 
-    # ── 備註 + 附件（並排） ──
-    col_note, col_file = st.columns(2)
-    with col_note:
+    # ── 支付方式 ──
+    st.markdown('<div class="sec-lbl">💳 支付方式</div>', unsafe_allow_html=True)
+    inp_pay = st.radio("支付方式", ["（未選）"] + PAYMENTS,
+                        key="pay_radio",
+                        label_visibility="collapsed", horizontal=True)
+
+    st.divider()
+
+    # ── 備註 + 附件 ──
+    col_n, col_f = st.columns(2)
+    with col_n:
         inp_note = st.text_input("💬 備註（可選）")
-    with col_file:
-        inp_file = st.file_uploader("📎 附件", type=['jpg','jpeg','png','pdf'])
+    with col_f:
+        inp_file = st.file_uploader("📎 附件（收據照片）", type=['jpg','jpeg','png','pdf'])
 
     # ── 換算預覽 ──
     if inp_amt > 0:
-        twd = round(inp_amt * VND_RATE) if 'VND' in st.session_state.cur else round(inp_amt)
+        twd = round(inp_amt * VND_RATE) if 'VND' in inp_cur else round(inp_amt)
         st.markdown(f"""
         <div class="twd-preview">
           💱 換算台幣：<strong style="color:#f1f5f9;font-size:16px;">{twd:,.0f}</strong> TWD
@@ -522,29 +535,32 @@ with t4:
         twd = 0
 
     # ── 提交 / 清除 ──
-    sb, cb = st.columns([2,1])
+    sb, cb = st.columns([2, 1])
     with sb:
         submitted = st.button("✅ 提交", type="primary", use_container_width=True)
     with cb:
-        if st.button("🗑️ 清除", use_container_width=True):
-            st.session_state.cat = ''
-            st.session_state.cur = 'TWD'
-            st.session_state.pay = ''
-            st.rerun()
+        cleared = st.button("🗑️ 清除", use_container_width=True)
+
+    if cleared:
+        st.rerun()
 
     if submitted:
         errs = []
-        if inp_amt <= 0:              errs.append("請輸入金額")
-        if not st.session_state.cat: errs.append("請選擇類別")
+        if inp_amt <= 0: errs.append("請輸入金額")
+        if not inp_cat:  errs.append("請選擇類別")
         if errs:
             for e in errs: st.error(f"❌ {e}")
         else:
             st.success("✅ 資料準備完成！")
             st.table(pd.DataFrame([{
-                "日期": str(inp_date), "類別": st.session_state.cat,
-                "項目": inp_name or "－", "金額": f"{inp_amt:,.0f}",
-                "幣別": st.session_state.cur, "支付": st.session_state.pay or "未填",
-                "備註": inp_note or "－", "台幣": f"{twd:,.0f}",
+                "日期": str(inp_date),
+                "類別": inp_cat,
+                "項目": inp_name or "－",
+                "金額": f"{inp_amt:,.0f}",
+                "幣別": inp_cur,
+                "支付": inp_pay if inp_pay != "（未選）" else "未填",
+                "備註": inp_note or "－",
+                "台幣": f"{twd:,.0f}",
                 "附件": f"✅ {inp_file.name}" if inp_file else "無",
             }]))
             st.info("⚠️ 直接寫入 Google Sheets 需設定 Service Account，請告知是否要啟用。")
