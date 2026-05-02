@@ -196,17 +196,21 @@ canvas { width: 100% !important; }
 
 /* ── Form ── */
 .form-section { margin-bottom: 14px; }
-.form-label { font-size: 10px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; display: block; }
+.form-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; display: block; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 input[type="date"], input[type="number"], input[type="text"], textarea {
   width: 100%; background: var(--bg3);
   border: 1px solid var(--border2); border-radius: 8px;
-  color: var(--text); font-size: 14px;
+  color: #ffffff; font-size: 14px;
   padding: 10px 12px; outline: none;
   font-family: 'Noto Sans TC', sans-serif;
   -webkit-appearance: none;
 }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+input::placeholder, textarea::placeholder { color: #64748b !important; }
+input[type="number"] { color: #ffffff !important; }
+select { color: #ffffff !important; }
 input[type="date"]:focus, input[type="number"]:focus,
 input[type="text"]:focus, textarea:focus {
   border-color: var(--accent);
@@ -405,7 +409,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.3.1';
+const VERSION    = 'v4.3.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
