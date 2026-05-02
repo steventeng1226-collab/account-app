@@ -302,7 +302,10 @@ textarea { resize: none; height: 64px; }
     <h1>流水帳統計中心</h1>
     <span class="ver" id="ver-badge">v4.1.0</span>
   </div>
-  <button id="refresh-btn" onclick="refreshData()">🔄 刷新</button>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+    <button id="refresh-btn" onclick="refreshData()">🔄 刷新</button>
+    <span id="rate-badge" style="font-size:9px;color:#f59e0b;font-weight:600">匯率載入中...</span>
+  </div>
 </div>
 
 <!-- Tabs -->
@@ -402,12 +405,12 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.2.1';
+const VERSION    = 'v4.3.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbwqhxkkg8oo0s_hOXo_6xbxcnmJrM3qaPOAqRqNlLncVTqJ6wsVOktSmLc2bqd2UTjW/exec';
-const VND_RATE   = 0.00128;
+let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 const CO_KEYS    = ['代墊', '公司', '固定'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','代墊','固定','越南固定支出','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
@@ -417,6 +420,25 @@ const PASTEL     = ['#7ec8e3','#f9c784','#a8d8a8','#f9a8d4','#c4b5fd','#fdba74',
 
 let allData = [];
 let charts = {};
+
+
+// ════════════════════════════════════
+//  即時匯率
+// ════════════════════════════════════
+async function fetchExchangeRate() {
+  try {
+    const res = await fetch('https://api.frankfurter.dev/v2/rate/TWD/VND');
+    const data = await res.json();
+    const twdToVnd = data.rate;
+    if (twdToVnd) {
+      VND_RATE = 1 / twdToVnd;
+      const rateEl = document.getElementById('rate-badge');
+      if (rateEl) rateEl.textContent = `1 TWD ≈ ${Math.round(twdToVnd)} VND`;
+    }
+  } catch(e) {
+    console.warn('匯率更新失敗，使用預設值');
+  }
+}
 
 // ════════════════════════════════════
 //  資料載入
@@ -977,7 +999,8 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ver-badge').textContent = VERSION;
   initForm();
-  await loadData();
+  // 並行執行：匯率 + 資料
+  await Promise.all([fetchExchangeRate(), loadData()]);
   // 預設在記帳分頁，背景載入完資料後更新統計
 });
 </script>
