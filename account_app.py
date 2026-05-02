@@ -7,7 +7,7 @@ import requests
 # ══════════════════════════════════════════
 #  設定
 # ══════════════════════════════════════════
-APP_VERSION  = "v3.2.1"
+APP_VERSION  = "v3.2.2"
 WEBHOOK_URL  = "https://script.google.com/macros/s/AKfycby25v70CU_TEdxEs9V81tJ6W-xJkg1dZNBh6ga5Bz4LpBwO8ipa1ETIDHrzPDsYV23y/exec"
 SHEET_ID    = "1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4"
 GID         = "259728202"
@@ -447,23 +447,34 @@ with t4:
         gap: 5px !important;
     }
     div[data-testid="stRadio"] > div > label {
-        background: #1f2937;
-        border: 1px solid #374151;
-        border-radius: 7px;
+        background: #1f2937 !important;
+        border: 1px solid #374151 !important;
+        border-radius: 7px !important;
         padding: 5px 10px !important;
         color: #e2e8f0 !important;
         font-size: 12px !important;
-        cursor: pointer;
+        cursor: pointer !important;
         margin: 0 !important;
-        flex: 0 0 auto;
+        flex: 0 0 auto !important;
     }
-    div[data-testid="stRadio"] > div > label:has(input:checked) {
+    div[data-testid="stRadio"] > div > label *,
+    div[data-testid="stRadio"] label * {
+        color: #e2e8f0 !important;
+        font-size: 12px !important;
+        background: transparent !important;
+    }
+    div[data-testid="stRadio"] > div > label:has(input:checked),
+    div[data-testid="stRadio"] > div > label:has(input:checked) * {
         background: #1d4ed8 !important;
         border-color: #3b82f6 !important;
         color: #fff !important;
-        font-weight: 600;
+        font-weight: 600 !important;
     }
     div[data-testid="stRadio"] > div > label > div:first-child {
+        display: none !important;
+    }
+    /* radio 隱藏原始圓點 */
+    div[data-testid="stRadio"] input[type="radio"] {
         display: none !important;
     }
     /* 類別 radio 小一點，4欄感覺 */
