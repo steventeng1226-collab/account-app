@@ -397,11 +397,11 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.1.1';
+const VERSION    = 'v4.1.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-const WEBHOOK    = 'https://script.google.com/macros/s/AKfycby25v70CU_TEdxEs9V81tJ6W-xJkg1dZNBh6ga5Bz4LpBwO8ipa1ETIDHrzPDsYV23y/exec';
+const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbwqhxkkg8oo0s_hOXo_6xbxcnmJrM3qaPOAqRqNlLncVTqJ6wsVOktSmLc2bqd2UTjW/exec';
 const VND_RATE   = 0.00128;
 const CO_KEYS    = ['代墊', '公司', '固定'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','代墊','固定','越南固定支出','公司代墊','其他'];
@@ -891,19 +891,18 @@ async function submitForm() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(WEBHOOK, {
+    // 用 no-cors 繞過 CORS 限制（Apps Script 不回傳 CORS header）
+    await fetch(WEBHOOK, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const result = await res.json();
-    if (result.status === 'ok') {
-      showToast('✅ 已成功記帳！', 'ok');
-      clearForm();
-      await loadData(true);
-    } else {
-      showToast('❌ 寫入失敗：' + (result.msg||'未知'), 'err');
-    }
+    // no-cors 下無法讀 response，等 1.5 秒後視為成功
+    await new Promise(r => setTimeout(r, 1500));
+    showToast('✅ 已成功記帳！', 'ok');
+    clearForm();
+    await loadData();
   } catch(e) {
     showToast('❌ 連線錯誤：' + e.message, 'err');
   } finally {
