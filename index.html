@@ -144,6 +144,7 @@ html, body {
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: 10px; padding: 8px;
   position: relative; overflow: hidden;
+  height: 180px;
 }
 .chart-title { font-size: 10px; color: var(--text2); font-weight: 600; margin-bottom: 6px; text-align: center; }
 canvas { width: 100% !important; }
@@ -396,7 +397,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.1.0';
+const VERSION    = 'v4.1.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -564,14 +565,14 @@ function renderMonthly() {
     ${isCur && tDay >= 3 ? `<div class="est-bar">📈 本月預估：<strong style="color:#f1f5f9">${fmt(est)} TWD</strong> <span style="color:#475569">（日均 ${fmt(dAvg)} 推算）</span></div>` : ''}
     ${isCur && tDay < 3 ? `<div class="est-bar" style="color:#475569">📈 累積 3 天後顯示預估</div>` : ''}
 
-    <div class="chart-row">
+    <div class="chart-row" style="height:180px">
       <div class="chart-box">
         <div class="chart-title">類別佔比</div>
-        <canvas id="chart-pie" style="min-height:160px"></canvas>
+        <canvas id="chart-pie"></canvas>
       </div>
       <div class="chart-box">
         <div class="chart-title">每日走勢</div>
-        <canvas id="chart-bar" style="min-height:160px"></canvas>
+        <canvas id="chart-bar"></canvas>
       </div>
     </div>
 
@@ -662,10 +663,10 @@ function renderTotal() {
 
     <hr class="divider">
 
-    <div class="chart-row">
+    <div class="chart-row" style="height:180px">
       <div class="chart-box">
         <div class="chart-title">全期類別佔比</div>
-        <canvas id="chart-pie2" style="min-height:160px"></canvas>
+        <canvas id="chart-pie2"></canvas>
       </div>
       <div class="chart-box" style="grid-column:span 1">
         <table class="rank-table" style="font-size:10px">
@@ -679,7 +680,7 @@ function renderTotal() {
 
     <div class="chart-box" style="margin-bottom:10px">
       <div class="chart-title">月消費趨勢</div>
-      <canvas id="chart-trend" style="min-height:150px"></canvas>
+      <canvas id="chart-trend"></canvas>
     </div>
   `;
 
