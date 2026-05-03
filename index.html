@@ -391,7 +391,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.8.0</span>
+    <span class="ver" id="ver-badge">v4.8.1</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -557,14 +557,14 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.8.0';
+const VERSION    = 'v4.8.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
-const CO_KEYS    = ['代墊', '公司', '固定'];
+const CO_KEYS    = ['公司代墊'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','保險','固定','越南固定支出','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
 const PAYMENTS   = ['現金','信用卡','銀行轉帳','其他'];
@@ -729,7 +729,7 @@ function renderMonthly() {
   const lbl = `${y}/${String(m).padStart(2,'0')}`;
   const prog = isCur ? `第 ${tDay}/${dim} 天（${pct}%）` : '完整月份';
 
-  const coMask = r => CO_KEYS.some(k => (r['類別']||'').includes(k));
+  const coMask = r => CO_KEYS.includes(r['類別']||'');
   const coSum  = dfm.filter(coMask).reduce((s,r) => s + r['台幣金額'], 0);
   const meSum  = dfm.filter(r => !coMask(r)).reduce((s,r) => s + r['台幣金額'], 0);
   const total  = meSum; // 總支出 = 個人實支，公司代墊獨立
@@ -844,7 +844,7 @@ function renderTotal() {
   const page = document.getElementById('page-total');
   if (!allData.length) { page.innerHTML = '<div class="empty">📭 尚無資料</div>'; return; }
 
-  const coMask = r => CO_KEYS.some(k => (r['類別']||'').includes(k));
+  const coMask = r => CO_KEYS.includes(r['類別']||'');
   const coS    = allData.filter(coMask).reduce((s,r) => s + r['台幣金額'], 0);
   const meS    = allData.filter(r => !coMask(r)).reduce((s,r) => s + r['台幣金額'], 0);
   const totAll = meS; // 累計總支出 = 個人實支
