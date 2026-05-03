@@ -293,11 +293,11 @@ textarea { resize: none; height: 64px; }
 /* ── Autocomplete ── */
 .autocomplete-wrap { position: relative; }
 .autocomplete-list {
-  position: absolute; top: 100%; left: 0; right: 0;
+  position: absolute; bottom: 100%; left: 0; right: 0;
   background: #1e293b; border: 1px solid #3b82f6;
-  border-radius: 0 0 8px 8px; z-index: 200;
-  max-height: 200px; overflow-y: auto;
-  box-shadow: 0 8px 24px #00000060;
+  border-radius: 8px 8px 0 0; z-index: 200;
+  max-height: 220px; overflow-y: auto;
+  box-shadow: 0 -8px 24px #00000060;
 }
 .autocomplete-item {
   padding: 10px 12px; cursor: pointer;
@@ -352,7 +352,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.7.4</span>
+    <span class="ver" id="ver-badge">v4.7.5</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -512,7 +512,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.7.4';
+const VERSION    = 'v4.7.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1359,9 +1359,20 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ver-badge').textContent = VERSION;
   initForm();
-  // 並行執行：匯率 + 資料
-  await Promise.all([fetchExchangeRate(), loadData()]);
-  // 預設在記帳分頁，背景載入完資料後更新統計
+  // 先載入資料，匯率同步抓取
+  const rateEl = document.getElementById('rate-badge');
+  if (rateEl) rateEl.textContent = '匯率載入中...';
+  await loadData(); // 先把資料顯示出來
+  fetchExchangeRate().then(() => {
+    // 匯率抓到後，重新計算台幣金額
+    if (allData.length) {
+      allData.forEach(r => {
+        const amt = parseFloat(r['金額']) || 0;
+        const cur = r['幣別'] || '';
+        r['台幣金額'] = cur.includes('VND') ? Math.round(amt * VND_RATE) : Math.round(amt);
+      });
+    }
+  });
 });
 </script>
 </body>
