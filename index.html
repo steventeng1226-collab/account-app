@@ -343,6 +343,45 @@ textarea { resize: none; height: 64px; }
 
 /* ── Empty state ── */
 .empty { text-align: center; padding: 40px 0; color: var(--text3); font-size: 13px; }
+
+/* ── 代墊分頁 ── */
+.reimburse-header { padding: 16px 16px 0; }
+.reimburse-summary { display: flex; gap: 12px; margin-bottom: 14px; }
+.rs-card { flex: 1; border-radius: 12px; padding: 14px 12px; text-align: center; }
+.rs-card.unpaid { background: linear-gradient(135deg, #7c3aed22, #7c3aed44); border: 1px solid #7c3aed66; }
+.rs-card.paid   { background: linear-gradient(135deg, #05966922, #05966944); border: 1px solid #05966966; }
+.rs-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.rs-amt   { font-size: 18px; font-weight: 700; color: #e2e8f0; }
+.rs-count { font-size: 11px; color: #64748b; margin-top: 2px; }
+.reimburse-filter { display: flex; gap: 8px; margin-bottom: 12px; }
+.rf-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #334155;
+  background: transparent; color: #94a3b8; font-size: 13px; cursor: pointer; }
+.rf-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+.reimburse-list { padding: 0 16px 80px; }
+.reimburse-item { display: flex; align-items: center; gap: 12px;
+  background: #1e293b; border-radius: 12px; padding: 14px 12px; margin-bottom: 10px;
+  border: 1px solid #334155; transition: opacity .3s; }
+.reimburse-item.is-paid { opacity: 0.55; }
+.reimburse-check { position: relative; width: 24px; height: 24px; flex-shrink: 0; cursor: pointer; }
+.reimburse-check input { opacity: 0; width: 0; height: 0; position: absolute; }
+.checkmark { position: absolute; inset: 0; border-radius: 6px;
+  border: 2px solid #475569; background: #0f172a; transition: all .2s; }
+.reimburse-check input:checked ~ .checkmark {
+  background: #059669; border-color: #059669; }
+.checkmark:after { content: '✓'; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%); color: #fff; font-size: 13px; font-weight: 700;
+  display: none; }
+.reimburse-check input:checked ~ .checkmark:after { display: block; }
+.reimburse-info { flex: 1; min-width: 0; }
+.ri-date { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+.ri-name { font-size: 14px; font-weight: 600; color: #e2e8f0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ri-paid-name { text-decoration: line-through; color: #64748b; }
+.ri-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
+.reimburse-amt { text-align: right; flex-shrink: 0; }
+.ri-twd { font-size: 15px; font-weight: 700; color: #e2e8f0; }
+.ri-paid-badge { font-size: 10px; color: #059669; margin-top: 3px; font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -352,7 +391,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.7.6</span>
+    <span class="ver" id="ver-badge">v4.8.0</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -363,6 +402,7 @@ textarea { resize: none; height: 64px; }
   <button class="tab-btn" onclick="switchTab('total')">📉 全期</button>
   <button class="tab-btn" onclick="switchTab('list')">📋 清單</button>
   <button class="tab-btn active" onclick="switchTab('add')">✏️ 記帳</button>
+  <button class="tab-btn" onclick="switchTab('reimburse')">💼 代墊</button>
 </div>
 
 <!-- Content -->
@@ -380,6 +420,11 @@ textarea { resize: none; height: 64px; }
 
   <!-- 清單 -->
   <div class="page" id="page-list">
+    <div class="loading"><div class="spinner"></div>載入中...</div>
+  </div>
+
+  <!-- 代墊 -->
+  <div class="page" id="page-reimburse">
     <div class="loading"><div class="spinner"></div>載入中...</div>
   </div>
 
@@ -512,7 +557,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.7.6';
+const VERSION    = 'v4.8.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -643,7 +688,7 @@ let currentTab = 'add';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    const tabs = ['monthly','total','list','add'];
+    const tabs = ['monthly','total','list','add','reimburse'];
     b.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -657,6 +702,7 @@ function renderCurrentTab() {
   if (currentTab === 'monthly') renderMonthly();
   else if (currentTab === 'total') renderTotal();
   else if (currentTab === 'list') renderList();
+  else if (currentTab === 'reimburse') renderReimburse();
 }
 
 // ════════════════════════════════════
@@ -1344,6 +1390,115 @@ async function submitForm() {
   } finally {
     btn.textContent = '✅ 提交記帳';
     btn.disabled = false;
+  }
+}
+
+
+// ════════════════════════════════════
+//  代墊分頁
+// ════════════════════════════════════
+let reimburseFilter = 'unpaid'; // 'all' | 'unpaid' | 'paid'
+
+function renderReimburse() {
+  const page = document.getElementById('page-reimburse');
+  const rows = allData.filter(r => r['類別'] && r['類別'].includes('公司代墊'));
+
+  if (!rows.length) {
+    page.innerHTML = '<div class="empty">📭 尚無公司代墊紀錄</div>';
+    return;
+  }
+
+  const unpaidRows = rows.filter(r => !r['收款狀態'] || r['收款狀態'] === '' || r['收款狀態'] === '未收款');
+  const paidRows   = rows.filter(r => r['收款狀態'] === '已收款');
+  const unpaidSum  = unpaidRows.reduce((s, r) => s + r['台幣金額'], 0);
+  const paidSum    = paidRows.reduce((s, r) => s + r['台幣金額'], 0);
+
+  const filterRows = reimburseFilter === 'unpaid' ? unpaidRows
+                   : reimburseFilter === 'paid'   ? paidRows
+                   : rows;
+
+  page.innerHTML = `
+    <div class="reimburse-header">
+      <div class="reimburse-summary">
+        <div class="rs-card unpaid">
+          <div class="rs-label">⏳ 未收款</div>
+          <div class="rs-amt">NT$ ${fmt(unpaidSum)}</div>
+          <div class="rs-count">${unpaidRows.length} 筆</div>
+        </div>
+        <div class="rs-card paid">
+          <div class="rs-label">✅ 已收款</div>
+          <div class="rs-amt">NT$ ${fmt(paidSum)}</div>
+          <div class="rs-count">${paidRows.length} 筆</div>
+        </div>
+      </div>
+      <div class="reimburse-filter">
+        <button class="rf-btn ${reimburseFilter==='unpaid'?'active':''}" onclick="setRFilter('unpaid')">未收款</button>
+        <button class="rf-btn ${reimburseFilter==='paid'?'active':''}" onclick="setRFilter('paid')">已收款</button>
+        <button class="rf-btn ${reimburseFilter==='all'?'active':''}" onclick="setRFilter('all')">全部</button>
+      </div>
+    </div>
+    <div class="reimburse-list">
+      ${filterRows.length === 0 ? '<div class="empty">📭 無符合紀錄</div>' :
+        filterRows.map(r => {
+          const isPaid = r['收款狀態'] === '已收款';
+          const sheetRow = r['__sheetRow'] || '';
+          return `
+          <div class="reimburse-item ${isPaid ? 'is-paid' : ''}">
+            <label class="reimburse-check">
+              <input type="checkbox" ${isPaid ? 'checked' : ''}
+                onchange="toggleReimburse(this, '${sheetRow}', '${(r['__rawTimestamp']||'').replace(/'/g,"\'")}')">
+              <span class="checkmark"></span>
+            </label>
+            <div class="reimburse-info">
+              <div class="ri-date">${r['日期'] || ''}</div>
+              <div class="ri-name ${isPaid ? 'ri-paid-name' : ''}">${r['項目名稱（簡述）'] || r['項目名稱'] || ''}</div>
+              <div class="ri-meta">${r['幣別']||''} ${parseFloat(r['金額']||0).toLocaleString()} ${r['支付方式']||''}</div>
+            </div>
+            <div class="reimburse-amt">
+              <div class="ri-twd">NT$ ${fmt(r['台幣金額'])}</div>
+              ${isPaid ? '<div class="ri-paid-badge">已收款</div>' : ''}
+            </div>
+          </div>`;
+        }).join('')
+      }
+    </div>`;
+}
+
+function setRFilter(f) {
+  reimburseFilter = f;
+  renderReimburse();
+}
+
+async function toggleReimburse(checkbox, sheetRow, timestamp) {
+  const isPaid = checkbox.checked;
+  const status = isPaid ? '已收款' : '未收款';
+  checkbox.disabled = true;
+
+  const payload = {
+    action:     'update',
+    rowNumber:  sheetRow,
+    timestamp:  timestamp,
+    reimbursed: status,   // Apps Script 會寫入 I 欄
+  };
+
+  try {
+    const form = buildHiddenForm(payload);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 更新本地資料
+    const row = allData.find(r => r['__sheetRow'] == sheetRow);
+    if (row) row['收款狀態'] = status;
+
+    showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
+    renderReimburse();
+  } catch(e) {
+    showToast('❌ 更新失敗：' + e.message, 'err');
+    checkbox.checked = !isPaid;
+  } finally {
+    checkbox.disabled = false;
   }
 }
 
