@@ -352,7 +352,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.7.3</span>
+    <span class="ver" id="ver-badge">v4.7.4</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -512,11 +512,11 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.7.3';
+const VERSION    = 'v4.7.4';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxdRZ5ImmFCUBP1cPQKizzvuPRy0kRc1zMaWKPwleYAoO5k-bw7eq9LwAxlXQgbA5cW/exec';
+const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 const CO_KEYS    = ['代墊', '公司', '固定'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','保險','固定','越南固定支出','公司代墊','其他'];
@@ -537,10 +537,10 @@ async function fetchExchangeRate() {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch('https://api.frankfurter.dev/v2/rate/TWD/VND', {signal: controller.signal});
+    const res = await fetch('https://api.frankfurter.dev/v1/latest?from=TWD&to=VND', {signal: controller.signal});
     clearTimeout(timeout);
     const data = await res.json();
-    const twdToVnd = data.rate;
+    const twdToVnd = data.rates && data.rates.VND;
     if (twdToVnd) {
       VND_RATE = 1 / twdToVnd;
       if (rateEl) rateEl.textContent = `1 TWD ≈ ${Math.round(twdToVnd)} VND`;
@@ -581,20 +581,26 @@ function parseCSV(text) {
   const lines = text.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
   console.log('📋 欄位名稱:', headers);
-  return lines.slice(1).map(line => {
+  const rows = [];
+  lines.slice(1).forEach((line, i) => {
     const vals = splitCSVLine(line);
     const row = {};
-    headers.forEach((h, i) => row[h] = (vals[i] || '').replace(/"/g,'').trim());
+    headers.forEach((h, j) => row[h] = (vals[j] || '').replace(/"/g,'').trim());
+    if (!row['日期']) return;
+    // 保存原始時間戳記 + 試算行號（第2行起 = index 0 → sheets row 2）
+    row['__sheetRow'] = i + 2; // Sheets 第1行是標題，所以資料從第2行開始
+    row['__rawTimestamp'] = row['時間戳記'] || '';
     // 計算台幣金額
     const amt = parseFloat(row['金額']) || 0;
     const cur = row['幣別'] || '';
     row['台幣金額'] = cur.includes('VND') ? Math.round(amt * VND_RATE) : Math.round(amt);
     // 年月
-    const d = row['日期'] ? new Date(row['日期']) : null;
-    row['年月'] = d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : '';
-    row['日'] = d ? d.getDate() : 0;
-    return row;
-  }).filter(r => r['日期']);
+    const d = new Date(row['日期']);
+    row['年月'] = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    row['日'] = d.getDate();
+    rows.push(row);
+  });
+  return rows;
 }
 
 function splitCSVLine(line) {
@@ -1156,18 +1162,19 @@ function closeModal(e) {
 
 async function saveEdit() {
   if (!editRow) return;
-  const ts = editRow['時間戳記'] || '';
   const payload = {
-    action:    'update',
-    timestamp: ts,
-    date:      document.getElementById('edit-date').value,
-    category:  editSelCat,
-    item:      document.getElementById('edit-name').value.trim(),
-    amount:    parseFloat(document.getElementById('edit-amt').value) || 0,
-    currency:  CUR_LABEL[editSelCur] || editSelCur,
-    payment:   editSelPay,
-    note:      document.getElementById('edit-note').value.trim(),
+    action:     'update',
+    rowNumber:  editRow['__sheetRow'] || '',
+    timestamp:  editRow['__rawTimestamp'] || editRow['時間戳記'] || '',
+    date:       document.getElementById('edit-date').value,
+    category:   editSelCat,
+    item:       document.getElementById('edit-name').value.trim(),
+    amount:     parseFloat(document.getElementById('edit-amt').value) || 0,
+    currency:   CUR_LABEL[editSelCur] || editSelCur,
+    payment:    editSelPay,
+    note:       document.getElementById('edit-note').value.trim(),
   };
+  console.log('💾 saveEdit payload:', JSON.stringify(payload));
 
   const btn = document.querySelector('#edit-modal .btn-primary');
   btn.textContent = '⏳ 儲存中...'; btn.disabled = true;
@@ -1195,8 +1202,10 @@ async function confirmDelete() {
   if (!confirm('確定要刪除這筆記錄嗎？')) return;
   const payload = {
     action:    'delete',
-    timestamp: editRow['時間戳記'] || '',
+    rowNumber: editRow['__sheetRow'] || '',
+    timestamp: editRow['__rawTimestamp'] || editRow['時間戳記'] || '',
   };
+  console.log('🗑️ confirmDelete payload:', JSON.stringify(payload));
   try {
     const form = buildHiddenForm(payload);
     document.body.appendChild(form);
