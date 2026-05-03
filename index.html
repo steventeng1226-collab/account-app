@@ -1370,7 +1370,27 @@ function showToast(msg, type='') {
 // ════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=470').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=476').catch(() => {});
+
+    // 強制更新：偵測新版 SW 後立即接管
+    navigator.serviceWorker.ready.then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // 有新版本，強制刷新
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+            window.location.reload();
+          }
+        });
+      });
+    });
+  });
+
+  // 當 SW 切換完成，重新載入頁面
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
   });
 }
 
