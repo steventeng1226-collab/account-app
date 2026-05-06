@@ -344,44 +344,7 @@ textarea { resize: none; height: 64px; }
 /* ── Empty state ── */
 .empty { text-align: center; padding: 40px 0; color: var(--text3); font-size: 13px; }
 
-/* ── Receipt Upload ── */
-.receipt-area {
-  margin-bottom: 12px;
-}
-.receipt-upload-btn {
-  width: 100%; background: var(--bg3);
-  border: 1px dashed #3b82f680;
-  border-radius: 9px; color: #60a5fa;
-  font-size: 13px; font-weight: 600;
-  padding: 11px; cursor: pointer;
-  font-family: 'Noto Sans TC', sans-serif;
-  transition: all .2s; display: flex;
-  align-items: center; justify-content: center; gap: 8px;
-}
-.receipt-upload-btn:active { background: #1e3a5f; border-color: #3b82f6; }
-.receipt-upload-btn.uploading { color: #f59e0b; border-color: #f59e0b44; animation: pulse 1.2s infinite; }
-.receipt-upload-btn.done { color: var(--green); border-color: #22c55e44; border-style: solid; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-.receipt-preview {
-  margin-top: 8px; border-radius: 8px; overflow: hidden;
-  border: 1px solid var(--border2); display: none;
-  position: relative;
-}
-.receipt-preview img {
-  width: 100%; max-height: 160px; object-fit: cover; display: block;
-}
-.receipt-preview .remove-receipt {
-  position: absolute; top: 6px; right: 6px;
-  background: #00000088; border: none; color: #fff;
-  border-radius: 50%; width: 26px; height: 26px;
-  font-size: 14px; cursor: pointer; display: flex;
-  align-items: center; justify-content: center;
-}
-.receipt-link-row {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 6px; font-size: 11px; color: var(--green);
-}
-
+/* ── 代墊分頁 ── */
 .reimburse-header { padding: 16px 16px 0; }
 .reimburse-summary { display: flex; gap: 12px; margin-bottom: 14px; }
 .rs-card { flex: 1; border-radius: 12px; padding: 14px 12px; text-align: center; }
@@ -430,7 +393,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.0</span>
+    <span class="ver" id="ver-badge">v4.8.5</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -520,22 +483,7 @@ textarea { resize: none; height: 64px; }
       <textarea id="inp-note" placeholder="補充說明..."></textarea>
     </div>
 
-    <div class="receipt-area">
-      <label class="form-label">📷 收據（可選）</label>
-      <input type="file" id="receipt-input" accept="image/*" capture="environment" style="display:none" onchange="onReceiptSelected(this)">
-      <button type="button" class="receipt-upload-btn" id="receipt-btn" onclick="document.getElementById('receipt-input').click()">
-        📷 上傳收據照片
-      </button>
-      <div class="receipt-preview" id="receipt-preview">
-        <img id="receipt-img" src="" alt="收據預覽">
-        <button class="remove-receipt" onclick="removeReceipt()">✕</button>
-      </div>
-      <div class="receipt-link-row" id="receipt-link-row" style="display:none">
-        ✅ 收據已上傳 · <a id="receipt-link" href="#" target="_blank" style="color:#60a5fa">查看連結</a>
-      </div>
-    </div>
-
-
+    <div class="twd-preview" id="twd-preview" style="display:none">
       💱 換算台幣：<strong id="twd-val">0</strong> TWD
     </div>
 
@@ -611,7 +559,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.0';
+const VERSION    = 'v4.8.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1221,7 +1169,6 @@ function clearForm() {
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-note').value = '';
   document.getElementById('twd-preview').style.display = 'none';
-  removeReceipt();
   initForm();
 }
 
@@ -1381,10 +1328,6 @@ async function submitForm() {
   const date = document.getElementById('inp-date').value;
   const name = document.getElementById('inp-name').value.trim();
   const note = document.getElementById('inp-note').value.trim();
-  // 若有收據連結，附加到備註
-  const noteWithReceipt = receiptDriveUrl
-    ? (note ? note + '\n📷 ' + receiptDriveUrl : '📷 ' + receiptDriveUrl)
-    : note;
 
   if (amt <= 0) { showToast('❌ 請輸入金額', 'err'); return; }
   if (!selCat)  { showToast('❌ 請選擇類別', 'err'); return; }
@@ -1400,7 +1343,10 @@ async function submitForm() {
     amount:    amt,
     currency:  CUR_LABEL[selCur] || selCur,
     payment:   selPay || '',
-    note:      noteWithReceipt,
+    note:      note,
+  };
+
+  const btn = document.querySelector('.btn-primary');
   btn.textContent = '⏳ 送出中...';
   btn.disabled = true;
 
@@ -1609,112 +1555,11 @@ function showToast(msg, type='') {
 }
 
 // ════════════════════════════════════
-//  收據上傳
-// ════════════════════════════════════
-let receiptDriveUrl = '';   // 上傳成功後的 Drive 分享連結
-
-function removeReceipt() {
-  receiptDriveUrl = '';
-  const btn = document.getElementById('receipt-btn');
-  const preview = document.getElementById('receipt-preview');
-  const linkRow = document.getElementById('receipt-link-row');
-  const inp = document.getElementById('receipt-input');
-  if (btn) { btn.textContent = '📷 上傳收據照片'; btn.className = 'receipt-upload-btn'; }
-  if (preview) preview.style.display = 'none';
-  if (linkRow) linkRow.style.display = 'none';
-  if (inp) inp.value = '';
-}
-
-async function onReceiptSelected(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const btn = document.getElementById('receipt-btn');
-  const preview = document.getElementById('receipt-preview');
-  const img = document.getElementById('receipt-img');
-
-  // 顯示本地預覽
-  const localUrl = URL.createObjectURL(file);
-  img.src = localUrl;
-  preview.style.display = 'block';
-
-  // 壓縮圖片
-  btn.innerHTML = '⏳ 壓縮上傳中...';
-  btn.className = 'receipt-upload-btn uploading';
-
-  try {
-    const base64 = await compressImage(file, 900, 0.72);
-    await uploadReceiptToScript(base64, file.name);
-  } catch(e) {
-    showToast('❌ 上傳失敗：' + e.message, 'err');
-    btn.innerHTML = '📷 上傳收據照片';
-    btn.className = 'receipt-upload-btn';
-  }
-}
-
-function compressImage(file, maxPx, quality) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const image = new Image();
-      image.onload = () => {
-        let { width, height } = image;
-        if (width > maxPx || height > maxPx) {
-          if (width > height) { height = Math.round(height * maxPx / width); width = maxPx; }
-          else { width = Math.round(width * maxPx / height); height = maxPx; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-        // 取得 base64（去掉 data:image/jpeg;base64, 前綴）
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl.split(',')[1]);
-      };
-      image.onerror = () => reject(new Error('圖片讀取失敗'));
-      image.src = e.target.result;
-    };
-    reader.onerror = () => reject(new Error('檔案讀取失敗'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function uploadReceiptToScript(base64, filename) {
-  const btn = document.getElementById('receipt-btn');
-  const linkRow = document.getElementById('receipt-link-row');
-  const linkEl = document.getElementById('receipt-link');
-
-  // 用 fetch + JSON body 送到 Apps Script（doPost 讀 e.postData.contents）
-  const payload = JSON.stringify({
-    action: 'uploadImage',
-    filename: filename.replace(/[^a-zA-Z0-9.\-_]/g, '_'),
-    imageData: base64,
-  });
-
-  const res = await fetch(WEBHOOK, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: payload,
-  });
-  const json = await res.json();
-
-  if (json.status === 'ok' && json.url) {
-    receiptDriveUrl = json.url;
-    btn.innerHTML = '✅ 收據已上傳';
-    btn.className = 'receipt-upload-btn done';
-    linkEl.href = receiptDriveUrl;
-    linkRow.style.display = 'flex';
-    showToast('📷 收據上傳成功！', 'ok');
-  } else {
-    throw new Error(json.error || '未知錯誤');
-  }
-}
-
-// ════════════════════════════════════
 //  Service Worker
 // ════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=490').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=476').catch(() => {});
 
     // 強制更新：偵測新版 SW 後立即接管
     navigator.serviceWorker.ready.then(reg => {
