@@ -384,6 +384,28 @@ textarea { resize: none; height: 64px; }
 .rs-cur { font-size: 13px; color: #ffffff; margin-top: 3px; font-weight: 600; }
 .ri-paid-badge { font-size: 10px; color: #059669; margin-top: 3px; font-weight: 600; }
 
+
+/* ── 收據上傳 ── */
+.upload-area {
+  border: 2px dashed #334155; border-radius: 12px;
+  padding: 20px; text-align: center; cursor: pointer;
+  background: #0f172a; transition: border-color .2s;
+}
+.upload-area:active { border-color: #3b82f6; }
+.upload-icon { font-size: 28px; margin-bottom: 6px; }
+.upload-hint { font-size: 13px; color: #e2e8f0; font-weight: 600; }
+.upload-sub  { font-size: 11px; color: #64748b; margin-top: 3px; }
+.file-preview-inner { display: flex; align-items: center; gap: 10px;
+  background: #1e293b; border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+.preview-name { flex: 1; font-size: 12px; color: #94a3b8;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.remove-file-btn { background: #ef444420; border: 1px solid #ef444450;
+  color: #ef4444; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+.progress-bar { height: 6px; background: #1e293b; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress-fill { height: 100%; background: #3b82f6; border-radius: 3px;
+  width: 0%; transition: width .3s; }
+.progress-text { font-size: 11px; color: #64748b; margin-top: 5px; text-align: center; }
+
 </style>
 </head>
 <body>
@@ -393,7 +415,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.8.5</span>
+    <span class="ver" id="ver-badge">v4.9.0</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -483,6 +505,28 @@ textarea { resize: none; height: 64px; }
       <textarea id="inp-note" placeholder="補充說明..."></textarea>
     </div>
 
+    <div class="form-section">
+      <label class="form-label">📎 收據/照片（可選）</label>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('inp-file').click()">
+        <div class="upload-icon">📷</div>
+        <div class="upload-hint">點擊拍照或選取檔案</div>
+        <div class="upload-sub">支援圖片、PDF（最大 5MB）</div>
+        <input type="file" id="inp-file" accept="image/*,application/pdf" style="display:none"
+          onchange="handleFileSelect(this)">
+      </div>
+      <div id="file-preview" style="display:none">
+        <div class="file-preview-inner">
+          <img id="preview-img" style="display:none; max-width:100%; border-radius:8px; margin-top:8px;">
+          <div id="preview-name" class="preview-name"></div>
+          <button class="remove-file-btn" onclick="removeFile()">✕ 移除</button>
+        </div>
+      </div>
+      <div id="upload-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-text" id="progress-text">上傳中...</div>
+      </div>
+    </div>
+
     <div class="twd-preview" id="twd-preview" style="display:none">
       💱 換算台幣：<strong id="twd-val">0</strong> TWD
     </div>
@@ -559,7 +603,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.8.5';
+const VERSION    = 'v4.9.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1168,6 +1212,7 @@ function clearForm() {
   document.getElementById('inp-amt').value = '';
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-note').value = '';
+  removeFile();
   document.getElementById('twd-preview').style.display = 'none';
   initForm();
 }
@@ -1323,6 +1368,105 @@ function buildHiddenForm(payload) {
 // ════════════════════════════════════
 //  提交記帳
 // ════════════════════════════════════
+
+// ════════════════════════════════════
+//  收據上傳
+// ════════════════════════════════════
+let selectedFile = null;
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('❌ 檔案超過 5MB', 'err');
+    input.value = '';
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('upload-area').style.display = 'none';
+  document.getElementById('file-preview').style.display = 'block';
+  document.getElementById('preview-name').textContent = '📎 ' + file.name;
+
+  // 圖片預覽
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('preview-img');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById('preview-img').style.display = 'none';
+  }
+}
+
+function removeFile() {
+  selectedFile = null;
+  document.getElementById('inp-file').value = '';
+  document.getElementById('preview-img').src = '';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('upload-area').style.display = 'block';
+}
+
+async function uploadFileToDrive(file, timestamp) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const mimeType = file.type || 'application/octet-stream';
+        const fileName = timestamp.replace(/[/: ]/g, '-') + '_' + file.name;
+
+        // 顯示進度條
+        const prog = document.getElementById('upload-progress');
+        const fill = document.getElementById('progress-fill');
+        const text = document.getElementById('progress-text');
+        prog.style.display = 'block';
+        fill.style.width = '30%';
+        text.textContent = '上傳中...';
+
+        // 送到 Apps Script 處理 Drive 上傳
+        const iframeId = 'upload-frame-' + Date.now();
+        const iframe = document.createElement('iframe');
+        iframe.name = iframeId;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        // 用 fetch 送（上傳需要 body，無法用 form POST）
+        const resp = await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            action:   'uploadFile',
+            fileName: fileName,
+            mimeType: mimeType,
+            fileData: base64,
+          })
+        });
+
+        fill.style.width = '80%';
+        const result = await resp.json();
+        fill.style.width = '100%';
+        text.textContent = '上傳完成！';
+
+        document.body.removeChild(iframe);
+        setTimeout(() => { prog.style.display = 'none'; fill.style.width = '0%'; }, 1500);
+
+        if (result.success && result.url) {
+          resolve(result.url);
+        } else {
+          reject(new Error(result.message || '上傳失敗'));
+        }
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function submitForm() {
   const amt  = parseFloat(document.getElementById('inp-amt').value) || 0;
   const date = document.getElementById('inp-date').value;
@@ -1351,6 +1495,18 @@ async function submitForm() {
   btn.disabled = true;
 
   try {
+    // 如果有選取檔案，先上傳到 Drive
+    if (selectedFile) {
+      btn.textContent = '📤 上傳收據...';
+      try {
+        const fileUrl = await uploadFileToDrive(selectedFile, ts);
+        payload.note = (note ? note + '\n' : '') + '📎 收據：' + fileUrl;
+      } catch(uploadErr) {
+        showToast('⚠️ 收據上傳失敗，僅送出記帳', 'err');
+        payload.note = note;
+      }
+    }
+
     // 用隱藏 iframe + form POST 完全繞過 CORS
     const iframeId = 'hidden-submit-frame';
     let iframe = document.getElementById(iframeId);
