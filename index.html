@@ -415,7 +415,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.0</span>
+    <span class="ver" id="ver-badge">v4.9.1</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -586,6 +586,33 @@ textarea { resize: none; height: 64px; }
       <textarea id="edit-note"></textarea>
     </div>
 
+    <div class="form-section" style="margin-top:10px">
+      <label class="form-label">📎 收據/照片（可選）</label>
+      <div class="upload-area" id="edit-upload-area" onclick="document.getElementById('edit-inp-file').click()">
+        <div class="upload-icon">📷</div>
+        <div class="upload-hint">點擊拍照或選取檔案</div>
+        <div class="upload-sub">支援圖片、PDF（最大 5MB）</div>
+        <input type="file" id="edit-inp-file" accept="image/*,application/pdf" style="display:none"
+          onchange="handleEditFileSelect(this)">
+      </div>
+      <div id="edit-file-preview" style="display:none">
+        <div class="file-preview-inner">
+          <img id="edit-preview-img" style="display:none; max-width:100%; border-radius:8px; margin-top:8px;">
+          <div id="edit-preview-name" class="preview-name"></div>
+          <button class="remove-file-btn" onclick="removeEditFile()">✕ 移除</button>
+        </div>
+      </div>
+      <div id="edit-upload-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="edit-progress-fill"></div></div>
+        <div class="progress-text" id="edit-progress-text">上傳中...</div>
+      </div>
+      <div id="edit-existing-receipt" style="display:none; margin-top:8px;">
+        <div class="file-preview-inner">
+          <span id="edit-existing-link" style="font-size:12px; color:#60a5fa; flex:1;"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-primary" onclick="saveEdit()">💾 儲存</button>
       <button class="btn-danger" onclick="confirmDelete()">🗑️ 刪除</button>
@@ -603,7 +630,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.0';
+const VERSION    = 'v4.9.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1244,7 +1271,23 @@ function openEditModal(r) {
   document.getElementById('edit-date').value = r['日期'] || '';
   document.getElementById('edit-amt').value  = r['金額'] || '';
   document.getElementById('edit-name').value = getItemName(r) || '';
-  document.getElementById('edit-note').value = r['備註（可選：詳細說明或特殊情況）'] || r['備註'] || '';
+  const noteVal = r['備註（可選：詳細說明或特殊情況）'] || r['備註'] || '';
+  document.getElementById('edit-note').value = noteVal;
+
+  // 重置上傳區
+  removeEditFile();
+
+  // 若備註已含收據連結，顯示現有連結
+  const existEl = document.getElementById('edit-existing-receipt');
+  const existLink = document.getElementById('edit-existing-link');
+  const receiptMatch = noteVal.match(/📎 收據：(https?:\/\/\S+)/);
+  if (receiptMatch) {
+    existEl.style.display = 'block';
+    existLink.innerHTML = `已有收據：<a href="${receiptMatch[1]}" target="_blank" style="color:#60a5fa">查看 →</a>`;
+  } else {
+    existEl.style.display = 'none';
+    existLink.innerHTML = '';
+  }
 
   renderEditPills();
   document.getElementById('edit-modal').style.display = 'flex';
@@ -1272,6 +1315,7 @@ function renderEditPills() {
 function closeEditModal() {
   document.getElementById('edit-modal').style.display = 'none';
   editRow = null;
+  removeEditFile();
 }
 
 function closeModal(e) {
@@ -1280,6 +1324,26 @@ function closeModal(e) {
 
 async function saveEdit() {
   if (!editRow) return;
+  let note = document.getElementById('edit-note').value.trim();
+
+  // 若有新選取的檔案，先上傳
+  if (editSelectedFile) {
+    const saveBtn = document.querySelector('#edit-modal .btn-primary');
+    saveBtn.textContent = '📤 上傳中...';
+    saveBtn.disabled = true;
+    try {
+      const fileUrl = await uploadEditFileToDrive(editSelectedFile, editRow['__sheetRow'] || Date.now());
+      // 移除舊收據連結再加新的
+      note = note.replace(/\n?📎 收據：https?:\/\/\S+/, '');
+      note = (note ? note + '\n' : '') + '📎 收據：' + fileUrl;
+    } catch(uploadErr) {
+      showToast('⚠️ 收據上傳失敗', 'err');
+    } finally {
+      saveBtn.textContent = '💾 儲存';
+      saveBtn.disabled = false;
+    }
+  }
+
   const payload = {
     action:     'update',
     rowNumber:  editRow['__sheetRow'] || '',
@@ -1290,7 +1354,7 @@ async function saveEdit() {
     amount:     parseFloat(document.getElementById('edit-amt').value) || 0,
     currency:   CUR_LABEL[editSelCur] || editSelCur,
     payment:    editSelPay,
-    note:       document.getElementById('edit-note').value.trim(),
+    note:       note,
   };
   console.log('💾 saveEdit payload:', JSON.stringify(payload));
 
@@ -1555,6 +1619,88 @@ async function submitForm() {
   }
 }
 
+
+
+// 編輯 modal 的收據上傳
+let editSelectedFile = null;
+
+function handleEditFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('❌ 檔案超過 5MB', 'err');
+    input.value = '';
+    return;
+  }
+  editSelectedFile = file;
+  document.getElementById('edit-upload-area').style.display = 'none';
+  document.getElementById('edit-file-preview').style.display = 'block';
+  document.getElementById('edit-preview-name').textContent = '📎 ' + file.name;
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('edit-preview-img');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById('edit-preview-img').style.display = 'none';
+  }
+}
+
+function removeEditFile() {
+  editSelectedFile = null;
+  document.getElementById('edit-inp-file').value = '';
+  document.getElementById('edit-preview-img').src = '';
+  document.getElementById('edit-preview-img').style.display = 'none';
+  document.getElementById('edit-file-preview').style.display = 'none';
+  document.getElementById('edit-upload-area').style.display = 'block';
+}
+
+async function uploadEditFileToDrive(file, rowNum) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const mimeType = file.type || 'application/octet-stream';
+        const fileName = 'edit-row' + rowNum + '_' + file.name;
+
+        const fill = document.getElementById('edit-progress-fill');
+        const text = document.getElementById('edit-progress-text');
+        document.getElementById('edit-upload-progress').style.display = 'block';
+        fill.style.width = '30%';
+        text.textContent = '上傳中...';
+
+        const resp = await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            action:   'uploadFile',
+            fileName: fileName,
+            mimeType: mimeType,
+            fileData: base64,
+          })
+        });
+
+        fill.style.width = '80%';
+        const result = await resp.json();
+        fill.style.width = '100%';
+        text.textContent = '上傳完成！';
+        setTimeout(() => {
+          document.getElementById('edit-upload-progress').style.display = 'none';
+          fill.style.width = '0%';
+        }, 1500);
+
+        if (result.success && result.url) resolve(result.url);
+        else reject(new Error(result.message || '上傳失敗'));
+      } catch(err) { reject(err); }
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ════════════════════════════════════
 //  代墊分頁
