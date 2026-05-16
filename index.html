@@ -415,7 +415,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.1</span>
+    <span class="ver" id="ver-badge">v4.9.2</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -473,7 +473,8 @@ textarea { resize: none; height: 64px; }
       <label class="form-label">📝 項目名稱（簡述用途）</label>
       <div class="autocomplete-wrap">
         <input type="text" id="inp-name" placeholder="例：全聯買菜" autocomplete="off"
-               oninput="onNameInput(this.value)" onblur="hideAC()" onfocus="onNameInput(this.value)">
+               oninput="onNameInput(this.value)" onblur="setTimeout(hideAC,200)" onfocus="onNameInput(this.value)"
+               oncompositionend="onNameInput(this.value)">
         <div class="autocomplete-list" id="ac-list" style="display:none"></div>
       </div>
     </div>
@@ -630,7 +631,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.1';
+const VERSION    = 'v4.9.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1088,10 +1089,13 @@ function onNameInput(val) {
     .slice(0, 8);
   if (!results.length) { list.style.display = 'none'; return; }
   list.innerHTML = results.map(h => {
-    const hi = h.name.replace(new RegExp(val, 'gi'), m => `<span class="ac-highlight">${m}</span>`);
+    const hi = h.name.replace(new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+      m => `<span class="ac-highlight">${m}</span>`);
     const cur = h.currency.includes('VND') ? 'VND' : h.currency.includes('USD') ? 'USD' : 'TWD';
-    const idx = buildHistory().indexOf(h);
-    return `<div class="autocomplete-item" data-name="${h.name.replace(/"/g,'&quot;')}" data-cat="${h.category}" data-cur="${cur}" data-pay="${h.payment}" onmousedown="selectACEl(this)">
+    return `<div class="autocomplete-item"
+      data-name="${h.name.replace(/"/g,'&quot;')}"
+      data-cat="${h.category}" data-cur="${cur}" data-pay="${h.payment}"
+      onmousedown="selectACEl(this)" ontouchstart="selectACEl(this)">
       <span class="ac-name">${hi}</span>
       <span class="ac-meta">${h.category}<br>${cur} · ${h.payment}</span>
     </div>`;
