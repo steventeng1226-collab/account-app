@@ -425,7 +425,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.6</span>
+    <span class="ver" id="ver-badge">v4.9.7</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -642,7 +642,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.6';
+const VERSION    = 'v4.9.7';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1075,8 +1075,13 @@ function getItemName(r) {
 function buildHistory() {
   // 從 allData 建立歷史紀錄，以項目名稱去重，保留最新的類別/幣別/支付
   const map = {};
+  if (allData.length > 0) {
+    const sampleKeys = Object.keys(allData[0]);
+    console.log('buildHistory 欄位名稱:', sampleKeys);
+  }
   [...allData].reverse().forEach(r => {
-    const name = (r['項目名稱（簡述）'] || r['項目名稱'] || '').trim();
+    // 嘗試所有可能的欄位名稱
+    const name = (r['項目名稱（簡述）'] || r['項目名稱（簡述用途）'] || r['項目名稱'] || r['D'] || '').trim();
     if (!name) return;
     if (!map[name]) {
       map[name] = {
@@ -1095,9 +1100,14 @@ function onNameInput(val) {
   const list = document.getElementById('ac-list');
   if (!val || val.length < 1) { list.style.display = 'none'; return; }
   const q = val.toLowerCase();
-  const results = buildHistory()
+  const history = buildHistory();
+  // DEBUG: 顯示資料狀況
+  console.log('allData筆數:', allData.length, '歷史筆數:', history.length, '搜尋:', q);
+  if (allData.length > 0) console.log('第一筆欄位:', Object.keys(allData[0]));
+  const results = history
     .filter(h => h.name.toLowerCase().includes(q))
     .slice(0, 6);
+  console.log('符合結果:', results.length, results.map(r=>r.name));
   if (!results.length) { list.style.display = 'none'; return; }
 
   // 動態定位到輸入框正下方
