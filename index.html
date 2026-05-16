@@ -406,6 +406,16 @@ textarea { resize: none; height: 64px; }
   width: 0%; transition: width .3s; }
 .progress-text { font-size: 11px; color: #64748b; margin-top: 5px; text-align: center; }
 
+
+/* ── 提交按鈕固定底部 ── */
+.sticky-submit {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 10px 16px 20px;
+  background: linear-gradient(to top, #0f172a 70%, transparent);
+  z-index: 100;
+}
+
 </style>
 </head>
 <body>
@@ -415,7 +425,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.3</span>
+    <span class="ver" id="ver-badge">v4.9.5</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -453,7 +463,7 @@ textarea { resize: none; height: 64px; }
   </div>
 
   <!-- 記帳 -->
-  <div class="page active" id="page-add">
+  <div class="page active" id="page-add" style="padding-bottom:70px">
     <div class="sec-title">✏️ 新增記帳</div>
 
     <div class="form-section">
@@ -473,8 +483,7 @@ textarea { resize: none; height: 64px; }
       <label class="form-label">📝 項目名稱（簡述用途）</label>
       <div class="autocomplete-wrap">
         <input type="text" id="inp-name" placeholder="例：全聯買菜" autocomplete="off"
-               oninput="onNameInput(this.value)" onblur="setTimeout(hideAC,200)" onfocus="onNameInput(this.value)"
-               oncompositionend="onNameInput(this.value)">
+               onblur="setTimeout(hideAC,300)">
         <div class="autocomplete-list" id="ac-list" style="display:none"></div>
       </div>
     </div>
@@ -503,15 +512,17 @@ textarea { resize: none; height: 64px; }
 
     <div class="form-section">
       <label class="form-label">💬 備註（可選）</label>
-      <textarea id="inp-note" placeholder="補充說明..."></textarea>
+      <textarea id="inp-note" placeholder="補充說明..." style="height:52px;min-height:52px"></textarea>
     </div>
 
     <div class="form-section">
       <label class="form-label">📎 收據/照片（可選）</label>
-      <div class="upload-area" id="upload-area" onclick="document.getElementById('inp-file').click()">
-        <div class="upload-icon">📷</div>
-        <div class="upload-hint">點擊拍照或選取檔案</div>
-        <div class="upload-sub">支援圖片、PDF（最大 5MB）</div>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('inp-file').click()" style="padding:10px;display:flex;align-items:center;gap:10px;text-align:left">
+        <div class="upload-icon" style="font-size:20px;margin:0">📷</div>
+        <div>
+          <div class="upload-hint" style="font-size:12px">點擊拍照或選取收據</div>
+          <div class="upload-sub">圖片 / PDF（最大 5MB）</div>
+        </div>
         <input type="file" id="inp-file" accept="image/*,application/pdf" style="display:none"
           onchange="handleFileSelect(this)">
       </div>
@@ -532,7 +543,7 @@ textarea { resize: none; height: 64px; }
       💱 換算台幣：<strong id="twd-val">0</strong> TWD
     </div>
 
-    <div class="btn-row">
+    <div class="btn-row sticky-submit">
       <button class="btn-primary" onclick="submitForm()">✅ 提交記帳</button>
       <button class="btn-secondary" onclick="clearForm()">🗑️ 清除</button>
     </div>
@@ -631,7 +642,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.3';
+const VERSION    = 'v4.9.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -641,7 +652,7 @@ let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
 const CATEGORIES = ['食','住','行','育','樂','醫療','保險','固定','越南固定支出','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
-const PAYMENTS   = ['現金','信用卡','銀行轉帳','其他'];
+const PAYMENTS   = ['現金','信用卡','銀行轉帳'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
 const PASTEL     = ['#7ec8e3','#f9c784','#a8d8a8','#f9a8d4','#c4b5fd','#fdba74','#86efac','#fda4af','#93c5fd','#fcd34d'];
 
@@ -1095,6 +1106,7 @@ function onNameInput(val) {
   list.style.top = (rect.bottom + 4) + 'px';
   list.style.left = '12px';
   list.style.right = '12px';
+  list.style.bottom = 'auto';
   list.innerHTML = results.map(h => {
     const hi = h.name.replace(new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
       m => `<span class="ac-highlight">${m}</span>`);
@@ -1121,7 +1133,7 @@ function selectACEl(el) {
   if (cat) selCat = cat;
   if (cur) selCur = cur;
   if (pay) {
-    const payMap = ['現金','信用卡','銀行轉帳','其他'];
+    const payMap = ['現金','信用卡','銀行轉帳'];
     const matched = payMap.find(k => pay.includes(k));
     selPay = matched || '';
   }
@@ -1141,7 +1153,7 @@ function selectAC(h) {
   selCur = cur;
   // 自動填入支付方式
   if (h.payment) {
-    const payMap = { '現金': '現金', '信用卡': '信用卡', '銀行轉帳': '銀行轉帳', '其他': '其他' };
+    const payMap = { '現金': '現金', '信用卡': '信用卡', '銀行轉帳': '銀行轉帳' };
     const matched = Object.keys(payMap).find(k => h.payment.includes(k));
     selPay = matched || '';
   }
@@ -1156,12 +1168,49 @@ function hideAC() {
   }, 150);
 }
 
+// 輪詢偵測輸入框值（解決中文輸入法不觸發 oninput 問題）
+let _acLastVal = '';
+function startACWatcher() {
+  setInterval(() => {
+    const el = document.getElementById('inp-name');
+    if (!el || document.activeElement !== el) return;
+    const val = el.value;
+    if (val !== _acLastVal) {
+      _acLastVal = val;
+      onNameInput(val);
+    }
+  }, 200);
+}
+
 // ════════════════════════════════════
 //  記帳分頁初始化
 // ════════════════════════════════════
 let selCat = ''; let selCur = 'VND'; let selPay = '';
 
 function initForm() {
+  // Autocomplete 事件綁定（支援中文輸入法）
+  const nameEl = document.getElementById('inp-name');
+  let acTimer = null;
+  let isComposing = false;
+
+  nameEl.addEventListener('compositionstart', () => { isComposing = true; });
+  nameEl.addEventListener('compositionend', (e) => {
+    isComposing = false;
+    setTimeout(() => onNameInput(nameEl.value), 50);
+  });
+  nameEl.addEventListener('input', () => {
+    if (!isComposing) {
+      clearTimeout(acTimer);
+      acTimer = setTimeout(() => onNameInput(nameEl.value), 100);
+    }
+  });
+  nameEl.addEventListener('focus', () => {
+    setTimeout(() => onNameInput(nameEl.value), 100);
+  });
+  nameEl.addEventListener('blur', () => {
+    setTimeout(hideAC, 250);
+  });
+
   // 設定今天日期
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -1902,6 +1951,7 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ver-badge').textContent = VERSION;
   initForm();
+  startACWatcher();
   // 先載入資料，匯率同步抓取
   const rateEl = document.getElementById('rate-badge');
   if (rateEl) rateEl.textContent = '匯率載入中...';
