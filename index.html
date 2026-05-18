@@ -425,7 +425,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.7</span>
+    <span class="ver" id="ver-badge">v4.9.8</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -642,7 +642,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.7';
+const VERSION    = 'v4.9.8';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -817,9 +817,28 @@ function renderMonthly() {
   const coMask = r => CO_KEYS.includes(r['類別']||'');
   const coSum  = dfm.filter(coMask).reduce((s,r) => s + r['台幣金額'], 0);
   const meSum  = dfm.filter(r => !coMask(r)).reduce((s,r) => s + r['台幣金額'], 0);
-  const total  = meSum; // 總支出 = 個人實支，公司代墊獨立
+  const total  = meSum;
   const dAvg   = tDay ? Math.round(meSum / tDay) : 0;
-  const est    = isCur && tDay >= 3 ? Math.round(meSum / tDay * dim) : 0;
+
+  // 本月預估：用前3個月平均月支出推算
+  function getPrev3MonthAvg() {
+    const allMonths = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
+    // 取出不含本月的前3個月
+    const prevMonths = allMonths.filter(mo => mo < selectedMonth).slice(0, 3);
+    if (!prevMonths.length) return 0;
+    const monthTotals = prevMonths.map(mo => {
+      return allData
+        .filter(r => r['年月'] === mo && !coMask(r))
+        .reduce((s, r) => s + r['台幣金額'], 0);
+    });
+    return Math.round(monthTotals.reduce((a,b) => a+b, 0) / monthTotals.length);
+  }
+  const prev3Avg = getPrev3MonthAvg();
+  // 有前3月資料就用前3月平均，否則用本月日均推算
+  const est = isCur && tDay >= 3
+    ? (prev3Avg > 0 ? prev3Avg : Math.round(meSum / tDay * dim))
+    : 0;
+  const estLabel = prev3Avg > 0 ? '前3月均值' : `日均 ${fmt(dAvg)} 推算`;
 
   // 類別加總（只算個人支出，排除公司代墊）
   const catMap = {};
@@ -859,7 +878,7 @@ function renderMonthly() {
       </div>
     </div>
 
-    ${isCur && tDay >= 3 ? `<div class="est-bar">📈 本月預估：<strong style="color:#f1f5f9">${fmt(est)} TWD</strong> <span style="color:#475569">（日均 ${fmt(dAvg)} 推算）</span></div>` : ''}
+    ${isCur && tDay >= 3 ? `<div class="est-bar">📈 本月預估：<strong style="color:#f1f5f9">${fmt(est)} TWD</strong> <span style="color:#475569">（${estLabel}）</span></div>` : ''}
     ${isCur && tDay < 3 ? `<div class="est-bar" style="color:#475569">📈 累積 3 天後顯示預估</div>` : ''}
 
     <div class="chart-row" style="height:180px">
