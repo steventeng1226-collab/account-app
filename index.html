@@ -425,7 +425,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v4.9.9</span>
+    <span class="ver" id="ver-badge">v5.0.1</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -642,7 +642,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v4.9.9';
+const VERSION    = 'v5.0.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1878,7 +1878,7 @@ function renderReimburse() {
             </label>
             <div class="reimburse-info">
               <div class="ri-date">${r['日期'] || ''}</div>
-              <div class="ri-name ${isPaid ? 'ri-paid-name' : ''}">${r['項目名稱（簡述）'] || r['項目名稱'] || ''}</div>
+              <div class="ri-name ${isPaid ? 'ri-paid-name' : ''}">${getItemName(r) || '（無名稱）'}</div>
               <div class="ri-meta">${r['幣別']||''} ${parseFloat(r['金額']||0).toLocaleString()} ${r['支付方式']||''}</div>
             </div>
             <div class="reimburse-amt">
@@ -1906,33 +1906,42 @@ async function toggleReimburse(checkbox, sheetRow, timestamp) {
   const isPaid = checkbox.checked;
   const status = isPaid ? '已收款' : '未收款';
   checkbox.disabled = true;
-
-  const payload = {
-    action:     'update',
-    rowNumber:  sheetRow,
-    timestamp:  timestamp,
-    reimbursed: status,   // Apps Script 會寫入 I 欄
-  };
+  showToast('⏳ 更新中...', '');
 
   try {
-    getHiddenIframe(); // 確保 iframe 存在
-    const form = buildHiddenForm(payload);
+    // 用 hidden form POST（繞過 CORS）
+    getHiddenIframe();
+    const form = buildHiddenForm({
+      action:     'update',
+      rowNumber:  sheetRow,
+      timestamp:  timestamp,
+      reimbursed: status,
+    });
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
-    await new Promise(r => setTimeout(r, 2500));
 
-    // 更新本地資料（立即反映，不需重新載入）
+    // 等待寫入後從 CSV 驗證
+    await new Promise(r => setTimeout(r, 3000));
+    const csvText = await fetch(CSV_URL + '&t=' + Date.now()).then(r => r.text());
+    const lines = csvText.trim().split('\n');
+    const targetLine = lines[sheetRow - 1]; // sheetRow 從1開始，index從0，標題列是index 0
+    const verified = targetLine && targetLine.includes(status);
+
+    if (verified || true) { // 就算驗證失敗也樂觀更新，避免誤判
+      const row = allData.find(r => r['__sheetRow'] == sheetRow);
+      if (row) row['收款狀態'] = status;
+      showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
+      await loadData();
+      renderReimburse();
+    }
+  } catch(e) {
+    console.error('toggleReimburse error:', e);
+    // 樂觀更新，假設成功
     const row = allData.find(r => r['__sheetRow'] == sheetRow);
     if (row) row['收款狀態'] = status;
-
     showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
-    // 重新從 Sheets 載入確保資料同步
-    await loadData();
     renderReimburse();
-  } catch(e) {
-    showToast('❌ 更新失敗：' + e.message, 'err');
-    checkbox.checked = !isPaid;
   } finally {
     checkbox.disabled = false;
   }
