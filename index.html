@@ -416,6 +416,57 @@ textarea { resize: none; height: 64px; }
   z-index: 100;
 }
 
+
+/* ── 當月一頁版面 ── */
+#page-monthly { display: flex; flex-direction: column; height: calc(100vh - 100px); overflow: hidden; padding: 8px 12px 4px; }
+.monthly-onepage { display: flex; flex-direction: column; height: 100%; gap: 6px; }
+
+.mo-top { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.month-select-sm { background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+  border-radius: 8px; padding: 5px 10px; font-size: 13px; flex: 1; }
+.mo-prog { font-size: 12px; color: #60a5fa; font-weight: 600; white-space: nowrap; }
+
+.mo-cards { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; flex-shrink: 0; }
+.mo-card { background: #1e293b; border-radius: 10px; padding: 8px 6px; text-align: center;
+  border: 1px solid #334155; }
+.mo-card.co { border-color: #92400e; background: #1a1200; }
+.mo-card.est { border-color: #1e3a5f; background: #0c1a2e; }
+.mo-card-lbl { font-size: 9px; color: #64748b; margin-bottom: 3px; line-height: 1.2; }
+.mo-card-val { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+.mo-card-val.co { color: #fbbf24; }
+.mo-card-val.est { color: #60a5fa; }
+
+.mo-charts { display: flex; gap: 6px; flex: 1; min-height: 0; }
+.mo-chart-box { flex: 1; background: #1e293b; border-radius: 10px; padding: 6px;
+  border: 1px solid #334155; display: flex; flex-direction: column; min-height: 0; }
+.mo-chart-title { font-size: 10px; color: #64748b; text-align: center; margin-bottom: 2px; flex-shrink: 0; }
+.mo-chart-box canvas { flex: 1; min-height: 0; }
+
+.mo-rank { flex-shrink: 0; max-height: 28vh; overflow-y: auto; }
+.rank-table-sm { width: 100%; border-collapse: collapse; font-size: 11px; }
+.rank-table-sm th { color: #64748b; font-weight: 600; padding: 3px 4px;
+  border-bottom: 1px solid #1f2937; text-align: left; position: sticky; top: 0; background: #0f172a; }
+.rank-table-sm td { color: #e2e8f0; padding: 4px 4px; border-bottom: 1px solid #1f293720; }
+.rank-table-sm .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rank-table-sm .pct { text-align: right; color: #60a5fa; width: 42px; }
+
+
+/* ── 清單搜尋 ── */
+.list-search-wrap {
+  position: relative; margin: 8px 16px 4px; flex-shrink: 0;
+}
+.list-search-input {
+  width: 100%; padding: 10px 36px 10px 14px;
+  background: #1e293b; border: 1px solid #334155;
+  border-radius: 10px; color: #e2e8f0; font-size: 13px;
+  box-sizing: border-box;
+}
+.list-search-input:focus { outline: none; border-color: #3b82f6; }
+.list-search-clear {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #64748b; font-size: 14px; cursor: pointer; padding: 4px;
+}
+
 </style>
 </head>
 <body>
@@ -425,7 +476,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.0.2</span>
+    <span class="ver" id="ver-badge">v5.0.8</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -642,7 +693,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.0.2';
+const VERSION    = 'v5.0.8';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -801,7 +852,10 @@ function renderMonthly() {
   if (!allData.length) { page.innerHTML = '<div class="empty">📭 尚無資料</div>'; return; }
 
   const months = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
-  if (!selectedMonth || !months.includes(selectedMonth)) selectedMonth = months[0];
+  // 預設當月，若當月無資料才用最近一個月
+  if (!selectedMonth || !months.includes(selectedMonth)) {
+    selectedMonth = months.includes(curYM) ? curYM : months[0];
+  }
 
   const today = new Date();
   const curYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
@@ -859,49 +913,60 @@ function renderMonthly() {
   }).join('');
 
   page.innerHTML = `
-    <select class="month-select" onchange="selectedMonth=this.value;renderMonthly()">
-      ${monthOpts}
-    </select>
-    <div class="m-banner">📅 ${lbl} &nbsp;|&nbsp; ${prog}</div>
+    <div class="monthly-onepage">
+      <!-- 頂部：月份 + 進度 -->
+      <div class="mo-top">
+        <select class="month-select-sm" onchange="selectedMonth=this.value;renderMonthly()">
+          ${monthOpts}
+        </select>
+        <div class="mo-prog">${prog}</div>
+      </div>
 
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-lbl">💰 個人總支出</div>
-        <div class="stat-val sm">${fmt(meSum)}</div>
+      <!-- 數字卡片列 -->
+      <div class="mo-cards">
+        <div class="mo-card">
+          <div class="mo-card-lbl">💰 個人支出</div>
+          <div class="mo-card-val">${fmt(meSum)}</div>
+        </div>
+        <div class="mo-card">
+          <div class="mo-card-lbl">📆 日均</div>
+          <div class="mo-card-val">${fmt(dAvg)}</div>
+        </div>
+        <div class="mo-card co">
+          <div class="mo-card-lbl">🚩 代墊</div>
+          <div class="mo-card-val co">${fmt(coSum)}</div>
+        </div>
+        <div class="mo-card est">
+          <div class="mo-card-lbl">📈 預估</div>
+          <div class="mo-card-val est">${isCur && tDay >= 3 ? fmt(est) : '--'}</div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-lbl">📆 日均</div>
-        <div class="stat-val sm">${fmt(dAvg)}</div>
+
+      <!-- 圖表列 -->
+      <div class="mo-charts">
+        <div class="mo-chart-box">
+          <div class="mo-chart-title">類別佔比</div>
+          <canvas id="chart-pie"></canvas>
+        </div>
+        <div class="mo-chart-box">
+          <div class="mo-chart-title">每日走勢</div>
+          <canvas id="chart-bar"></canvas>
+        </div>
       </div>
-      <div class="stat-card wide" style="border-color:#374151;background:#1a1a2e">
-        <div class="stat-lbl" style="color:#f59e0b">🚩 公司代墊（獨立）</div>
-        <div class="stat-val sm" style="color:#fbbf24">${fmt(coSum)}</div>
+
+      <!-- 類別排行（捲動區） -->
+      <div class="mo-rank">
+        <table class="rank-table-sm">
+          <tr><th>類別</th><th class="num">TWD</th><th class="pct">%</th></tr>
+          ${catEntries.map(([cat, val]) => `
+            <tr>
+              <td>${cat}</td>
+              <td class="num">${fmt(val)}</td>
+              <td class="pct">${(val/total*100).toFixed(1)}%</td>
+            </tr>`).join('')}
+        </table>
       </div>
     </div>
-
-    ${isCur && tDay >= 3 ? `<div class="est-bar">📈 本月預估：<strong style="color:#f1f5f9">${fmt(est)} TWD</strong> <span style="color:#475569">（${estLabel}）</span></div>` : ''}
-    ${isCur && tDay < 3 ? `<div class="est-bar" style="color:#475569">📈 累積 3 天後顯示預估</div>` : ''}
-
-    <div class="chart-row" style="height:180px">
-      <div class="chart-box">
-        <div class="chart-title">類別佔比</div>
-        <canvas id="chart-pie"></canvas>
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">每日走勢</div>
-        <canvas id="chart-bar"></canvas>
-      </div>
-    </div>
-
-    <table class="rank-table">
-      <tr><th>類別</th><th class="num">金額 TWD</th><th class="pct">佔比</th></tr>
-      ${catEntries.map(([cat, val]) => `
-        <tr>
-          <td>${cat}</td>
-          <td class="num">${fmt(val)}</td>
-          <td class="pct">${(val/total*100).toFixed(1)}%</td>
-        </tr>`).join('')}
-    </table>
   `;
 
   // Charts
@@ -930,10 +995,31 @@ function renderMonthly() {
           datasets: [{ data: dayVals, backgroundColor: '#2563eb', borderRadius: 3 }]
         },
         options: {
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: item => `NT$ ${fmt(item.raw)}` } }
+          },
           scales: {
-            x: { ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: '#1f2937' } },
-            y: { ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: '#1f2937' } }
+            x: {
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 9 },
+                maxRotation: 0,
+                callback: function(val, idx) {
+                  // 只顯示 1, 5, 10, 15, 20, 25, 30 日
+                  const d = parseInt(days[idx]);
+                  return [1,5,10,15,20,25,30].includes(d) ? d+'日' : '';
+                }
+              },
+              grid: { color: '#1f293750' }
+            },
+            y: {
+              ticks: {
+                color: '#94a3b8', font: { size: 9 },
+                callback: v => v >= 1000 ? Math.round(v/1000)+'k' : v
+              },
+              grid: { color: '#1f293750' }
+            }
           },
           responsive: true, maintainAspectRatio: false
         }
@@ -1012,21 +1098,48 @@ function renderTotal() {
       });
     }
     if (trend && monthEntries.length) {
+      // 月份標籤：2026-02 → 2/26 或 26年2月
+      const trendLabels = monthEntries.map(e => {
+        const [y, m] = e[0].split('-');
+        return `${parseInt(m)}月`;
+      });
       charts['trend'] = new Chart(trend, {
         type: 'line',
         data: {
-          labels: monthEntries.map(e => e[0]),
+          labels: trendLabels,
           datasets: [{
             data: monthEntries.map(e=>e[1]),
             borderColor: '#3b82f6', backgroundColor: '#3b82f620',
-            tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#3b82f6'
+            tension: 0.3, fill: true, pointRadius: 5, pointBackgroundColor: '#3b82f6',
+            pointHoverRadius: 7,
           }]
         },
         options: {
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  const [y, m] = monthEntries[idx][0].split('-');
+                  return `${y}年${parseInt(m)}月`;
+                },
+                label: (item) => `NT$ ${fmt(item.raw)}`
+              }
+            }
+          },
           scales: {
-            x: { ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: '#1f2937' } },
-            y: { ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: '#1f2937' } }
+            x: {
+              ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 0 },
+              grid: { color: '#1f2937' }
+            },
+            y: {
+              ticks: {
+                color: '#94a3b8', font: { size: 9 },
+                callback: v => v >= 1000 ? Math.round(v/1000) + 'k' : v
+              },
+              grid: { color: '#1f2937' }
+            }
           },
           responsive: true, maintainAspectRatio: false
         }
@@ -1039,6 +1152,7 @@ function renderTotal() {
 //  清單分頁
 // ════════════════════════════════════
 let listFilter = '全部';
+let listSearch = '';
 
 function renderList() {
   const page = document.getElementById('page-list');
@@ -1047,7 +1161,26 @@ function renderList() {
   const months = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
   const filters = ['全部', ...months];
 
-  const filtered = listFilter === '全部' ? allData : allData.filter(r => r['年月'] === listFilter);
+  function fmtMonthBtn(f, months) {
+    if (f === '全部') return '全部';
+    const [y, m] = f.split('-');
+    const isFirstOfYear = months.filter(mo => mo.startsWith(y))[0] === f;
+    return isFirstOfYear ? y + '|' + parseInt(m) + '月' : parseInt(m) + '月';
+  }
+
+  // 月份過濾
+  let filtered = listFilter === '全部' ? allData : allData.filter(r => r['年月'] === listFilter);
+
+  // 搜尋過濾（項目名稱 + 類別 + 備註）
+  if (listSearch.trim()) {
+    const q = listSearch.trim().toLowerCase();
+    filtered = filtered.filter(r => {
+      const name = getItemName(r).toLowerCase();
+      const cat  = (r['類別'] || '').toLowerCase();
+      const note = (r['備註（可選：詳細說明或特殊情況）'] || r['備註'] || '').toLowerCase();
+      return name.includes(q) || cat.includes(q) || note.includes(q);
+    });
+  }
   const sorted = [...filtered].sort((a,b) => {
     const dateDiff = new Date(b['日期']) - new Date(a['日期']);
     if (dateDiff !== 0) return dateDiff;
@@ -1055,13 +1188,13 @@ function renderList() {
   });
 
   const filterBtns = filters.map(f => `
-    <button class="filter-btn ${f===listFilter?'active':''}" onclick="listFilter='${f}';renderList()">${f==='全部'?'全部':f.replace('-','/')}</button>
+    <button class="filter-btn ${f===listFilter?'active':''}" onclick="listFilter='${f}';renderList()">${fmtMonthBtn(f, months)}</button>
   `).join('');
 
   const items = sorted.map(r => `
     <div class="list-item" data-idx="${allData.indexOf(r)}" onclick="openEditByIdx(this)" style="cursor:pointer">
       <div>
-        <div class="date">${r['日期']}</div>
+        <div class="date">${fmtDate(r['日期'])}</div>
         <div class="name">${getItemName(r)}</div>
         <div style="font-size:11px;color:#64748b;margin-top:2px">${r['備註（可選：詳細說明或特殊情況）']||r['備註']||''}</div>
         <span class="cat">${r['類別']||''}</span>
@@ -1075,9 +1208,24 @@ function renderList() {
 
   page.innerHTML = `
     <div class="list-filter">${filterBtns}</div>
-    ${items || '<div class="empty">這個月還沒有記錄</div>'}
-    <div class="list-caption">共 ${sorted.length} 筆</div>
+    <div class="list-search-wrap">
+      <input type="text" class="list-search-input" id="list-search-inp"
+        placeholder="🔍 搜尋項目、類別、備註..."
+        value="${listSearch}"
+        oninput="listSearch=this.value;renderList()"
+        ${listSearch ? '' : ''}>
+      ${listSearch ? `<button class="list-search-clear" onclick="listSearch='';renderList()">✕</button>` : ''}
+    </div>
+    ${listSearch && filtered.length === 0 ? '<div class="empty">🔍 找不到符合的記錄</div>' :
+      items || '<div class="empty">這個月還沒有記錄</div>'}
+    <div class="list-caption">共 ${sorted.length} 筆${listSearch ? ` · 搜尋「${listSearch}」` : ''}</div>
   `;
+
+  // 搜尋框保持焦點
+  if (listSearch) {
+    const inp = document.getElementById('list-search-inp');
+    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  }
 }
 
 
@@ -1878,7 +2026,7 @@ function renderReimburse() {
               <span class="checkmark"></span>
             </label>
             <div class="reimburse-info">
-              <div class="ri-date">${r['日期'] || ''}</div>
+              <div class="ri-date">${fmtDate(r['日期'])}</div>
               <div class="ri-name ${isPaid ? 'ri-paid-name' : ''}">${getItemName(r) || '（無名稱）'}</div>
               <div class="ri-meta">${r['幣別']||''} ${parseFloat(r['金額']||0).toLocaleString()} ${r['支付方式']||''}</div>
             </div>
@@ -1946,6 +2094,20 @@ async function toggleReimburse(checkbox, sheetRow, timestamp) {
   } finally {
     checkbox.disabled = false;
   }
+}
+
+
+// 日期顯示：2026年後只顯示月/日，其他年份顯示完整
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const curYear = new Date().getFullYear();
+  if (y === curYear) return `${m}/${day}`;
+  return `${y}/${m}/${day}`;
 }
 
 // ════════════════════════════════════
