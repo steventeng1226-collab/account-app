@@ -436,7 +436,7 @@ textarea { resize: none; height: 64px; }
 .mo-card-val.co { color: #fbbf24; }
 .mo-card-val.est { color: #60a5fa; }
 
-.mo-charts { display: flex; gap: 6px; height: 180px; flex-shrink: 0; }
+.mo-charts { display: flex; gap: 6px; height: 160px; flex-shrink: 0; }
 .mo-chart-box { flex: 1; background: #1e293b; border-radius: 10px; padding: 6px;
   border: 1px solid #334155; display: flex; flex-direction: column; min-height: 0; }
 .mo-chart-title { font-size: 10px; color: #64748b; text-align: center; margin-bottom: 2px; flex-shrink: 0; }
@@ -476,7 +476,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.1.2</span>
+    <span class="ver" id="ver-badge">v5.1.3</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -693,7 +693,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.1.2';
+const VERSION    = 'v5.1.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1076,7 +1076,7 @@ function renderTotal() {
 
     <hr class="divider">
 
-    <div class="chart-box" style="margin-bottom:10px">
+    <div class="chart-box" style="margin-bottom:10px; height:220px">
       <div class="chart-title">月消費趨勢</div>
       <canvas id="chart-trend"></canvas>
     </div>
@@ -1127,9 +1127,10 @@ function renderTotal() {
               }
             }
           },
+          layout: { padding: { bottom: 8 } },
           scales: {
             x: {
-              ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 0 },
+              ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 },
               grid: { color: '#1f2937' }
             },
             y: {
