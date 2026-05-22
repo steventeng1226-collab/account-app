@@ -476,7 +476,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.0.9</span>
+    <span class="ver" id="ver-badge">v5.1.1</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -693,7 +693,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.0.9';
+const VERSION    = 'v5.1.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -852,13 +852,12 @@ function renderMonthly() {
   if (!allData.length) { page.innerHTML = '<div class="empty">📭 尚無資料</div>'; return; }
 
   const months = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
+  const today = new Date();
+  const curYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   // 預設當月，若當月無資料才用最近一個月
   if (!selectedMonth || !months.includes(selectedMonth)) {
     selectedMonth = months.includes(curYM) ? curYM : months[0];
   }
-
-  const today = new Date();
-  const curYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const isCur = selectedMonth === curYM;
 
   const dfm = allData.filter(r => r['年月'] === selectedMonth);
@@ -2168,14 +2167,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rateEl = document.getElementById('rate-badge');
   if (rateEl) rateEl.textContent = '匯率載入中...';
   await loadData(); // 先把資料顯示出來
+  renderCurrentTab(); // 資料載入後渲染當前分頁
   fetchExchangeRate().then(() => {
-    // 匯率抓到後，重新計算台幣金額
+    // 匯率抓到後，重新計算台幣金額並重新渲染
     if (allData.length) {
       allData.forEach(r => {
         const amt = parseFloat(r['金額']) || 0;
         const cur = r['幣別'] || '';
         r['台幣金額'] = cur.includes('VND') ? Math.round(amt * VND_RATE) : cur.includes('USD') ? Math.round(amt * USD_RATE) : Math.round(amt);
       });
+      renderCurrentTab();
     }
   });
 });
