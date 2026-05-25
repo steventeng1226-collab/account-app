@@ -467,6 +467,52 @@ textarea { resize: none; height: 64px; }
   background: none; border: none; color: #64748b; font-size: 14px; cursor: pointer; padding: 4px;
 }
 
+
+/* ── AI 辨識 ── */
+.ai-scan-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none; border-radius: 8px; color: #fff;
+  padding: 8px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.ai-scan-btn:active { opacity: 0.8; }
+.ai-result-card {
+  background: #1e293b; border: 1px solid #6366f1;
+  border-radius: 10px; padding: 10px 12px; margin-top: 8px;
+  font-size: 12px;
+}
+.ai-result-row { display: flex; justify-content: space-between;
+  align-items: center; padding: 3px 0; border-bottom: 1px solid #1f293730; }
+.ai-result-row:last-child { border-bottom: none; }
+.ai-result-label { color: #64748b; }
+.ai-result-val { color: #e2e8f0; font-weight: 600; }
+.ai-apply-btn { width: 100%; margin-top: 8px; background: #6366f1;
+  border: none; border-radius: 8px; color: #fff; padding: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* ── 消費分析 ── */
+.analysis-btn {
+  position: fixed; bottom: 80px; right: 16px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none; border-radius: 50%; width: 48px; height: 48px;
+  font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px #6366f160;
+  z-index: 90;
+}
+.analysis-modal {
+  position: fixed; inset: 0; background: #00000088;
+  z-index: 500; display: flex; align-items: flex-end;
+}
+.analysis-sheet {
+  background: #0f172a; border-radius: 20px 20px 0 0;
+  padding: 20px 16px 40px; width: 100%; max-height: 80vh;
+  overflow-y: auto;
+}
+.analysis-title { font-size: 16px; font-weight: 700; color: #e2e8f0;
+  margin-bottom: 12px; display: flex; justify-content: space-between; }
+.analysis-content { font-size: 13px; color: #cbd5e1; line-height: 1.7;
+  white-space: pre-wrap; }
+.analysis-loading { text-align: center; padding: 30px 0; color: #64748b; }
+
 </style>
 </head>
 <body>
@@ -476,7 +522,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.1.5</span>
+    <span class="ver" id="ver-badge">v5.2.0</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -488,6 +534,16 @@ textarea { resize: none; height: 64px; }
   <button class="tab-btn" onclick="switchTab('list')">📋 清單</button>
   <button class="tab-btn active" onclick="switchTab('add')">✏️ 記帳</button>
   <button class="tab-btn" onclick="switchTab('reimburse')">💼 代墊</button>
+</div>
+<button class="analysis-btn" onclick="openAnalysis()" title="AI消費分析">🤖</button>
+<div class="analysis-modal" id="analysis-modal" style="display:none" onclick="if(event.target===this)closeAnalysis()">
+  <div class="analysis-sheet">
+    <div class="analysis-title">
+      <span>🤖 AI 消費分析</span>
+      <button onclick="closeAnalysis()" style="background:none;border:none;color:#64748b;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div id="analysis-content" class="analysis-content"></div>
+  </div>
 </div>
 
 <!-- Content -->
@@ -568,12 +624,19 @@ textarea { resize: none; height: 64px; }
 
     <div class="form-section">
       <label class="form-label">📎 收據/照片（可選）</label>
-      <div class="upload-area" id="upload-area" onclick="document.getElementById('inp-file').click()" style="padding:10px;display:flex;align-items:center;gap:10px;text-align:left">
-        <div class="upload-icon" style="font-size:20px;margin:0">📷</div>
-        <div>
-          <div class="upload-hint" style="font-size:12px">點擊拍照或選取收據</div>
-          <div class="upload-sub">圖片 / PDF（最大 5MB）</div>
+      <div class="upload-area" id="upload-area" style="padding:10px;display:flex;align-items:center;gap:8px;text-align:left">
+        <div style="flex:1;cursor:pointer" onclick="document.getElementById('inp-file').click()">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:20px">📷</div>
+            <div>
+              <div class="upload-hint" style="font-size:12px">點擊拍照或選取收據</div>
+              <div class="upload-sub">圖片 / PDF（最大 5MB）</div>
+            </div>
+          </div>
         </div>
+        <button class="ai-scan-btn" id="ai-scan-btn" onclick="triggerAIScan()" style="display:none">
+          🤖 AI辨識
+        </button>
         <input type="file" id="inp-file" accept="image/*,application/pdf" style="display:none"
           onchange="handleFileSelect(this)">
       </div>
@@ -693,11 +756,12 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.1.5';
+const VERSION    = 'v5.2.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
+const GEMINI_KEY = '在此填入你的Gemini API Key'; // 填入後存檔上傳
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
@@ -1693,7 +1757,8 @@ function handleFileSelect(input) {
     return;
   }
   selectedFile = file;
-  document.getElementById('upload-area').style.display = 'none';
+  document.getElementById('upload-area').style.display = 'flex';
+  document.getElementById('ai-scan-btn').style.display = 'block';
   document.getElementById('file-preview').style.display = 'block';
   document.getElementById('preview-name').textContent = '📎 ' + file.name;
 
@@ -1717,7 +1782,10 @@ function removeFile() {
   document.getElementById('preview-img').src = '';
   document.getElementById('preview-img').style.display = 'none';
   document.getElementById('file-preview').style.display = 'none';
-  document.getElementById('upload-area').style.display = 'block';
+  document.getElementById('upload-area').style.display = 'flex';
+  document.getElementById('ai-scan-btn').style.display = 'none';
+  const card = document.getElementById('ai-result-card');
+  if (card) card.remove();
 }
 
 async function uploadFileToDrive(file, timestamp) {
@@ -2102,6 +2170,181 @@ function fmtDate(dateStr) {
   const curYear = new Date().getFullYear();
   if (y === curYear) return `${m}/${day}`;
   return `${y}/${m}/${day}`;
+}
+
+
+// ════════════════════════════════════
+//  Gemini AI 功能
+// ════════════════════════════════════
+
+// 收據辨識
+async function triggerAIScan() {
+  if (!selectedFile) return;
+  if (GEMINI_KEY.includes('填入')) {
+    showToast('❌ 請先在程式碼填入 Gemini API Key', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('ai-scan-btn');
+  btn.textContent = '⏳ 辨識中...';
+  btn.disabled = true;
+
+  // 移除舊結果
+  const old = document.getElementById('ai-result-card');
+  if (old) old.remove();
+
+  try {
+    // 轉 base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = e => res(e.target.result.split(',')[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(selectedFile);
+    });
+
+    const prompt = `這是一張收據或帳單照片。請辨識並以 JSON 格式回傳以下資訊（只回傳 JSON，不要其他文字）：
+{
+  "item": "消費項目名稱（簡短）",
+  "amount": 數字（金額，不含幣別符號）,
+  "currency": "TWD 或 VND 或 USD",
+  "category": "從以下選一：食/住/行/育/樂/醫療/保險/固定/越南固定支出/公司代墊/其他",
+  "date": "日期 yyyy-mm-dd 格式，若無法辨識則空字串",
+  "note": "補充備註（可空）"
+}`;
+
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: selectedFile.type || 'image/jpeg', data: base64 } }
+            ]
+          }]
+        })
+      }
+    );
+
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    // 顯示辨識結果卡片
+    const uploadWrap = document.getElementById('upload-area').parentElement;
+    const card = document.createElement('div');
+    card.id = 'ai-result-card';
+    card.className = 'ai-result-card';
+    card.innerHTML = `
+      <div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:6px">🤖 AI 辨識結果</div>
+      ${result.item    ? `<div class="ai-result-row"><span class="ai-result-label">項目</span><span class="ai-result-val">${result.item}</span></div>` : ''}
+      ${result.amount  ? `<div class="ai-result-row"><span class="ai-result-label">金額</span><span class="ai-result-val">${result.amount} ${result.currency||''}</span></div>` : ''}
+      ${result.category? `<div class="ai-result-row"><span class="ai-result-label">類別</span><span class="ai-result-val">${result.category}</span></div>` : ''}
+      ${result.date    ? `<div class="ai-result-row"><span class="ai-result-label">日期</span><span class="ai-result-val">${result.date}</span></div>` : ''}
+      ${result.note    ? `<div class="ai-result-row"><span class="ai-result-label">備註</span><span class="ai-result-val">${result.note}</span></div>` : ''}
+      <button class="ai-apply-btn" onclick="applyAIResult(${JSON.stringify(result).replace(/"/g,'&quot;')})">✅ 套用到記帳欄位</button>
+    `;
+    uploadWrap.appendChild(card);
+    showToast('✅ 辨識完成！', 'ok');
+
+  } catch(e) {
+    console.error('AI scan error:', e);
+    showToast('❌ 辨識失敗：' + e.message, 'err');
+  } finally {
+    btn.textContent = '🤖 AI辨識';
+    btn.disabled = false;
+  }
+}
+
+function applyAIResult(result) {
+  if (result.item)     document.getElementById('inp-name').value = result.item;
+  if (result.amount)   { document.getElementById('inp-amt').value = result.amount; updateTWD(); }
+  if (result.date)     document.getElementById('inp-date').value = result.date;
+  if (result.note)     document.getElementById('inp-note').value = result.note;
+  if (result.category && CATEGORIES.includes(result.category)) {
+    selCat = result.category; initFormPills();
+  }
+  if (result.currency) {
+    const cur = result.currency.toUpperCase();
+    if (CURRENCIES.includes(cur)) { selCur = cur; initFormPills(); }
+  }
+  showToast('✅ 已套用辨識結果！', 'ok');
+  const card = document.getElementById('ai-result-card');
+  if (card) card.remove();
+}
+
+// 消費分析
+async function openAnalysis() {
+  if (GEMINI_KEY.includes('填入')) {
+    showToast('❌ 請先填入 Gemini API Key', 'err');
+    return;
+  }
+  document.getElementById('analysis-modal').style.display = 'flex';
+  const el = document.getElementById('analysis-content');
+  el.innerHTML = '<div class="analysis-loading">🤖 分析中，請稍候...</div>';
+
+  try {
+    const today = new Date();
+    const curYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const thisMonth = allData.filter(r => r['年月'] === curYM && !CO_KEYS.includes(r['類別']||''));
+    const last3 = allData.filter(r => r['年月'] < curYM && !CO_KEYS.includes(r['類別']||''));
+
+    // 整理資料摘要給 Gemini
+    const catSum = {};
+    thisMonth.forEach(r => {
+      const c = r['類別'] || '其他';
+      catSum[c] = (catSum[c]||0) + r['台幣金額'];
+    });
+    const total = Object.values(catSum).reduce((a,b)=>a+b,0);
+    const summary = Object.entries(catSum).sort((a,b)=>b[1]-a[1])
+      .map(([c,v]) => `${c}: NT$${Math.round(v).toLocaleString()}（${(v/total*100).toFixed(1)}%）`).join('
+');
+
+    const prev3months = [...new Set(last3.map(r=>r['年月']))].sort().reverse().slice(0,3);
+    const prevAvg = prev3months.length ? Math.round(
+      prev3months.map(mo => last3.filter(r=>r['年月']===mo).reduce((s,r)=>s+r['台幣金額'],0))
+        .reduce((a,b)=>a+b,0) / prev3months.length
+    ) : 0;
+
+    const prompt = `你是一位理財顧問。以下是用戶本月（${curYM}）的消費資料：
+
+本月個人總支出：NT$${Math.round(total).toLocaleString()}
+前3個月平均：NT$${prevAvg.toLocaleString()}
+本月天數進度：${today.getDate()}/${new Date(today.getFullYear(), today.getMonth()+1, 0).getDate()}天
+
+各類別消費：
+${summary}
+
+請用繁體中文提供：
+1. 本月消費概況評估（2-3句）
+2. 主要支出類別分析（重點2-3點）
+3. 與前3月比較（是否有異常）
+4. 具體節流建議（2-3點）
+
+請簡潔有重點，總字數約200字。`;
+
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      }
+    );
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
+    el.innerHTML = `<div class="analysis-content">${text.replace(/\n/g,'<br>').replace(/\*\*/g,'<strong>').replace(/\*/g,'')}</div>`;
+
+  } catch(e) {
+    el.innerHTML = `<div style="color:#ef4444">❌ 分析失敗：${e.message}</div>`;
+  }
+}
+
+function closeAnalysis() {
+  document.getElementById('analysis-modal').style.display = 'none';
 }
 
 // ════════════════════════════════════
