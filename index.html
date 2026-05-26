@@ -522,7 +522,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.2.1</span>
+    <span class="ver" id="ver-badge">v5.2.2</span>
   </div>
   <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
 </div>
@@ -756,7 +756,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.2.1';
+const VERSION    = 'v5.2.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1977,24 +1977,22 @@ async function uploadEditFileToDrive(file, rowNum) {
         fill.style.width = '30%';
         text.textContent = '上傳中...';
 
-        fill.style.width = '50%';
-        getHiddenIframe();
-        const uploadForm2 = buildHiddenForm({
-          action:   'uploadFile',
-          fileName: fileName,
-          mimeType: mimeType,
-          fileData: base64,
+        fill.style.width = '30%';
+        text.textContent = '上傳中...';
+
+        const resp2 = await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            action:   'uploadFile',
+            fileName: fileName,
+            mimeType: mimeType,
+            fileData: base64,
+          })
         });
 
-        const iframe2 = document.getElementById('hidden-submit-frame');
-        await new Promise((res) => {
-          iframe2.onload = () => res();
-          document.body.appendChild(uploadForm2);
-          uploadForm2.submit();
-          document.body.removeChild(uploadForm2);
-          setTimeout(res, 15000);
-        });
-
+        fill.style.width = '90%';
+        const result2 = await resp2.json();
         fill.style.width = '100%';
         text.textContent = '上傳完成！';
         setTimeout(() => {
@@ -2002,8 +2000,8 @@ async function uploadEditFileToDrive(file, rowNum) {
           fill.style.width = '0%';
         }, 1500);
 
-        const driveSearchUrl2 = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(fileName);
-        resolve(driveSearchUrl2);
+        if (result2.success && result2.url) resolve(result2.url);
+        else reject(new Error(result2.message || '上傳失敗'));
       } catch(err) { reject(err); }
     };
     reader.readAsDataURL(file);
