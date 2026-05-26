@@ -761,7 +761,7 @@ const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
-const GEMINI_KEY = '在此填入你的Gemini API Key'; // 填入後存檔上傳
+const GEMINI_KEY = 'AIzaSyBIROPdRjpkMSzULHs4F4q22PDNsKxzk9s'; // 填入後存檔上傳
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
@@ -2180,7 +2180,7 @@ function fmtDate(dateStr) {
 // 收據辨識
 async function triggerAIScan() {
   if (!selectedFile) return;
-  if (GEMINI_KEY.includes('AIzaSyBIROPdRjpkMSzULHs4F4q22PDNsKxzk9s')) {
+  if (GEMINI_KEY.includes('填入')) {
     showToast('❌ 請先在程式碼填入 Gemini API Key', 'err');
     return;
   }
