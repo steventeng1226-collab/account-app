@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.3.4</span>
+    <span class="ver" id="ver-badge">v5.3.5</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -681,6 +681,29 @@ textarea { resize: none; height: 64px; }
 
 
 <!-- Edit/Delete Modal -->
+<!-- 設定 Modal -->
+<div id="settings-modal" style="display:none;position:fixed;inset:0;background:#00000088;z-index:600;align-items:flex-end" onclick="if(event.target===this)closeSettings()">
+  <div style="background:#0f172a;border-radius:20px 20px 0 0;padding:24px 16px 40px;width:100%;box-sizing:border-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700;color:#e2e8f0">⚙️ 設定</div>
+      <button onclick="closeSettings()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🤖 Gemini API Key</label>
+      <input type="password" id="settings-gemini-key" placeholder="AIzaSy..."
+        style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+      <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI辨識和消費分析，只存在你的手機裡</div>
+    </div>
+    <div style="margin-bottom:20px">
+      <button id="toggle-key-btn" onclick="toggleKeyVisibility()" style="background:#1e293b;border:1px solid #334155;border-radius:8px;color:#94a3b8;padding:8px 14px;font-size:12px;cursor:pointer">
+        👁️ 顯示 Key
+      </button>
+    </div>
+    <button onclick="saveSettings()" style="width:100%;padding:14px;background:#3b82f6;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">💾 儲存設定</button>
+    <button onclick="clearSettings()" style="width:100%;padding:10px;background:transparent;border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:13px;cursor:pointer">🗑️ 清除 Key</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="edit-modal" style="display:none" onclick="closeModal(event)">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-title">
@@ -770,7 +793,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.3.4';
+const VERSION    = 'v5.3.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
