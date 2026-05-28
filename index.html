@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.3.5</span>
+    <span class="ver" id="ver-badge">v5.3.6</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -793,7 +793,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.3.5';
+const VERSION    = 'v5.3.6';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1840,35 +1840,32 @@ async function uploadFileToDrive(file, timestamp) {
         fill.style.width = '30%';
         text.textContent = '上傳中...';
 
-        // 先嘗試 fetch POST 到 Apps Script
+        // 用 GET 請求上傳（繞過 CORS 限制）
         let uploadUrl = null;
         try {
-          const resp = await fetch(WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              action: 'uploadFile', fileName, mimeType, fileData: base64,
-            })
+          const params = new URLSearchParams({
+            action: 'uploadFile',
+            fileName: fileName,
+            mimeType: mimeType,
+            fileData: base64,
           });
+          fill.style.width = '40%';
+          const resp = await fetch(WEBHOOK + '?' + params.toString());
           fill.style.width = '80%';
           const result = await resp.json();
           console.log('upload result:', JSON.stringify(result));
-          if (result.success && result.url) uploadUrl = result.url;
-          else throw new Error(result.message || '上傳失敗');
-        } catch(fetchErr) {
-          console.warn('fetch failed:', fetchErr.message);
-          // 備用：hidden form
-          getHiddenIframe();
-          const uf = buildHiddenForm({ action:'uploadFile', fileName, mimeType, fileData:base64 });
-          document.body.appendChild(uf);
-          uf.submit();
-          document.body.removeChild(uf);
-          await new Promise(r => setTimeout(r, 8000));
-          uploadUrl = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(fileName);
+          if (result.success && result.url) {
+            uploadUrl = result.url;
+          } else {
+            throw new Error(result.message || '上傳失敗');
+          }
+        } catch(err) {
+          console.error('upload error:', err.message);
+          throw new Error('上傳失敗：' + err.message);
         }
 
         fill.style.width = '100%';
-        text.textContent = uploadUrl.includes('file/d') ? '✅ 上傳成功！' : '⚠️ 已儲存（搜尋連結）';
+        text.textContent = '✅ 上傳成功！';
         setTimeout(() => { prog.style.display = 'none'; fill.style.width = '0%'; }, 1500);
         resolve(uploadUrl);
       } catch(err) {
