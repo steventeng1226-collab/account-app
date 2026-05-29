@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.3.6</span>
+    <span class="ver" id="ver-badge">v5.3.7</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -793,7 +793,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.3.6';
+const VERSION    = 'v5.3.7';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1778,6 +1778,31 @@ function buildHiddenForm(payload) {
 //  提交記帳
 // ════════════════════════════════════
 
+
+// 圖片壓縮（最大寬高 maxPx，品質 quality）
+function compressImage(file, maxPx, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else       { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // ════════════════════════════════════
 //  收據上傳
 // ════════════════════════════════════
@@ -1824,185 +1849,74 @@ function removeFile() {
 }
 
 async function uploadFileToDrive(file, timestamp) {
+  // 先用 Canvas 壓縮圖片到最大 800px，降低 base64 大小
+  async function compressImage(file) {
+    return new Promise((res) => {
+      if (!file.type.startsWith('image/')) { res(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => res(blob), 'image/jpeg', 0.7);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+  }
+
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const base64 = e.target.result.split(',')[1];
-        const mimeType = file.type || 'application/octet-stream';
-        const fileName = timestamp.replace(/[/: ]/g, '-') + '_' + file.name;
-
-        // 顯示進度條
-        const prog = document.getElementById('upload-progress');
-        const fill = document.getElementById('progress-fill');
-        const text = document.getElementById('progress-text');
-        prog.style.display = 'block';
-        fill.style.width = '30%';
-        text.textContent = '上傳中...';
-
-        // 用 GET 請求上傳（繞過 CORS 限制）
-        let uploadUrl = null;
+    const doUpload = async (uploadFile) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
         try {
-          const params = new URLSearchParams({
-            action: 'uploadFile',
-            fileName: fileName,
-            mimeType: mimeType,
-            fileData: base64,
+          const base64 = e.target.result.split(',')[1];
+          const mimeType = 'image/jpeg';
+          const fileName = timestamp.replace(/[/: ]/g, '-') + '_' + (file.name || 'receipt.jpg');
+
+          const prog = document.getElementById('upload-progress');
+          const fill = document.getElementById('progress-fill');
+          const text = document.getElementById('progress-text');
+          if (prog) prog.style.display = 'block';
+          if (fill) fill.style.width = '30%';
+          if (text) text.textContent = '上傳中...';
+
+          // 用 POST 上傳
+          const resp = await fetch(WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action:'uploadFile', fileName, mimeType, fileData:base64 })
           });
-          fill.style.width = '40%';
-          const resp = await fetch(WEBHOOK + '?' + params.toString());
-          fill.style.width = '80%';
+
+          if (fill) fill.style.width = '90%';
           const result = await resp.json();
           console.log('upload result:', JSON.stringify(result));
-          if (result.success && result.url) {
-            uploadUrl = result.url;
-          } else {
-            throw new Error(result.message || '上傳失敗');
-          }
-        } catch(err) {
-          console.error('upload error:', err.message);
-          throw new Error('上傳失敗：' + err.message);
-        }
 
-        fill.style.width = '100%';
-        text.textContent = '✅ 上傳成功！';
-        setTimeout(() => { prog.style.display = 'none'; fill.style.width = '0%'; }, 1500);
-        resolve(uploadUrl);
-      } catch(err) {
-        reject(err);
-      }
+          if (fill) fill.style.width = '100%';
+          if (text) text.textContent = result.success ? '✅ 上傳成功！' : '❌ 上傳失敗';
+          setTimeout(() => { if (prog) prog.style.display = 'none'; if(fill) fill.style.width='0%'; }, 1500);
+
+          if (result.success && result.url) resolve(result.url);
+          else reject(new Error(result.message || '上傳失敗'));
+        } catch(err) {
+          console.error('upload error:', err);
+          reject(err);
+        }
+      };
+      reader.readAsDataURL(uploadFile);
     };
-    reader.readAsDataURL(file);
+
+    compressImage(file).then(doUpload).catch(reject);
   });
 }
 
-async function submitForm() {
-  const amt  = parseFloat(document.getElementById('inp-amt').value) || 0;
-  const date = document.getElementById('inp-date').value;
-  const name = document.getElementById('inp-name').value.trim();
-  const note = document.getElementById('inp-note').value.trim();
-
-  if (amt <= 0) { showToast('❌ 請輸入金額', 'err'); return; }
-  if (!selCat)  { showToast('❌ 請選擇類別', 'err'); return; }
-
-  const now = new Date();
-  const ts = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()<12?'上午':'下午'} ${String(now.getHours()%12||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-
-  const payload = {
-    timestamp: ts,
-    date:      date,
-    category:  selCat,
-    item:      name,
-    amount:    amt,
-    currency:  CUR_LABEL[selCur] || selCur,
-    payment:   selPay || '',
-    note:      note,
-  };
-
-  const btn = document.querySelector('.btn-primary');
-  btn.textContent = '⏳ 送出中...';
-  btn.disabled = true;
-
-  try {
-    // 如果有選取檔案，先上傳到 Drive
-    if (selectedFile) {
-      btn.textContent = '📤 上傳收據...';
-      try {
-        const fileUrl = await uploadFileToDrive(selectedFile, ts);
-        payload.note = (note ? note + '\n' : '') + '📎 收據：' + fileUrl;
-      } catch(uploadErr) {
-        showToast('⚠️ 收據上傳失敗，僅送出記帳', 'err');
-        payload.note = note;
-      }
-    }
-
-    // 用隱藏 iframe + form POST 完全繞過 CORS
-    const iframeId = 'hidden-submit-frame';
-    let iframe = document.getElementById(iframeId);
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = iframeId;
-      iframe.name = iframeId;
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = WEBHOOK;
-    form.target = iframeId;
-    form.style.display = 'none';
-    // Apps Script 用 e.parameter 讀取
-    const fields = {
-      timestamp: payload.timestamp,
-      date: payload.date,
-      category: payload.category,
-      item: payload.item,
-      amount: String(payload.amount),
-      currency: payload.currency,
-      payment: payload.payment,
-      note: payload.note,
-    };
-    for (const [k, v] of Object.entries(fields)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = k;
-      input.value = v;
-      form.appendChild(input);
-    }
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    await new Promise(r => setTimeout(r, 2000));
-    showToast('✅ 已成功記帳！', 'ok');
-    clearForm();
-    await loadData();
-  } catch(e) {
-    showToast('❌ 連線錯誤：' + e.message, 'err');
-  } finally {
-    btn.textContent = '✅ 提交記帳';
-    btn.disabled = false;
-  }
-}
-
-
-
-// 編輯 modal 的收據上傳
-let editSelectedFile = null;
-
-function handleEditFileSelect(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('❌ 檔案超過 5MB', 'err');
-    input.value = '';
-    return;
-  }
-  editSelectedFile = file;
-  document.getElementById('edit-upload-area').style.display = 'none';
-  document.getElementById('edit-file-preview').style.display = 'block';
-  document.getElementById('edit-preview-name').textContent = '📎 ' + file.name;
-
-  if (file.type.startsWith('image/')) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = document.getElementById('edit-preview-img');
-      img.src = e.target.result;
-      img.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  } else {
-    document.getElementById('edit-preview-img').style.display = 'none';
-  }
-}
-
-function removeEditFile() {
-  editSelectedFile = null;
-  document.getElementById('edit-inp-file').value = '';
-  document.getElementById('edit-preview-img').src = '';
-  document.getElementById('edit-preview-img').style.display = 'none';
-  document.getElementById('edit-file-preview').style.display = 'none';
-  document.getElementById('edit-upload-area').style.display = 'block';
-}
 
 async function uploadEditFileToDrive(file, rowNum) {
   return new Promise((resolve, reject) => {
