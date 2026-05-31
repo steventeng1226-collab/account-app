@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.4.3</span>
+    <span class="ver" id="ver-badge">v5.4.4</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -793,7 +793,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.4.3';
+const VERSION    = 'v5.4.4';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -2046,49 +2046,34 @@ async function uploadFileToDrive(file, timestamp) {
 
 
 async function uploadEditFileToDrive(file, rowNum) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const base64 = e.target.result.split(',')[1];
-        const mimeType = file.type || 'application/octet-stream';
-        const fileName = 'edit-row' + rowNum + '_' + file.name;
+  // 複用 uploadFileToDrive 的壓縮上傳邏輯
+  const prog = document.getElementById('edit-upload-progress');
+  const fill = document.getElementById('edit-progress-fill');
+  const text = document.getElementById('edit-progress-text');
+  if (prog) prog.style.display = 'block';
 
-        const fill = document.getElementById('edit-progress-fill');
-        const text = document.getElementById('edit-progress-text');
-        document.getElementById('edit-upload-progress').style.display = 'block';
-        fill.style.width = '30%';
-        text.textContent = '上傳中...';
-
-        fill.style.width = '30%';
-        text.textContent = '上傳中...';
-
-        const resp2 = await fetch(WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            action:   'uploadFile',
-            fileName: fileName,
-            mimeType: mimeType,
-            fileData: base64,
-          })
-        });
-
-        fill.style.width = '90%';
-        const result2 = await resp2.json();
-        fill.style.width = '100%';
-        text.textContent = '上傳完成！';
-        setTimeout(() => {
-          document.getElementById('edit-upload-progress').style.display = 'none';
-          fill.style.width = '0%';
-        }, 1500);
-
-        if (result2.success && result2.url) resolve(result2.url);
-        else reject(new Error(result2.message || '上傳失敗'));
-      } catch(err) { reject(err); }
-    };
-    reader.readAsDataURL(file);
+  // 替換進度條 ID 讓 uploadFileToDrive 可以更新
+  const origIds = {};
+  ['upload-progress','progress-fill','progress-text'].forEach((id, i) => {
+    const editId = ['edit-upload-progress','edit-progress-fill','edit-progress-text'][i];
+    const el = document.getElementById(editId);
+    if (el) { origIds[id] = el.id; el.id = id; }
   });
+
+  try {
+    const fileName = 'edit-row' + rowNum + '_' + file.name;
+    // 建立新的 File 物件用新檔名
+    const renamedFile = new File([file], fileName, { type: file.type });
+    const ts = String(rowNum);
+    const url = await uploadFileToDrive(renamedFile, ts);
+    return url;
+  } finally {
+    // 還原 ID
+    Object.entries(origIds).forEach(([id, origId]) => {
+      const el = document.getElementById(id);
+      if (el) el.id = origId;
+    });
+  }
 }
 
 // ════════════════════════════════════
