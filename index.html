@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.4.2</span>
+    <span class="ver" id="ver-badge">v5.4.3</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -793,7 +793,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.4.2';
+const VERSION    = 'v5.4.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1629,6 +1629,45 @@ function openEditByRow(el) {
     console.error('openEditByRow error:', err);
     showToast('❌ 錯誤：' + err.message, 'err');
   }
+}
+
+
+function handleEditFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('❌ 檔案超過 5MB', 'err');
+    input.value = '';
+    return;
+  }
+  editSelectedFile = file;
+  document.getElementById('edit-upload-area').style.display = 'none';
+  document.getElementById('edit-file-preview').style.display = 'block';
+  document.getElementById('edit-preview-name').textContent = '📎 ' + file.name;
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('edit-preview-img');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById('edit-preview-img').style.display = 'none';
+  }
+}
+
+function removeEditFile() {
+  editSelectedFile = null;
+  const inp = document.getElementById('edit-inp-file');
+  if (inp) inp.value = '';
+  const img = document.getElementById('edit-preview-img');
+  if (img) { img.src = ''; img.style.display = 'none'; }
+  const prev = document.getElementById('edit-file-preview');
+  if (prev) prev.style.display = 'none';
+  const area = document.getElementById('edit-upload-area');
+  if (area) area.style.display = 'block';
 }
 
 function openEditModal(r) {
