@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.4.5</span>
+    <span class="ver" id="ver-badge">v5.5.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -692,15 +692,31 @@ textarea { resize: none; height: 64px; }
       <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🤖 Gemini API Key</label>
       <input type="password" id="settings-gemini-key" placeholder="AIzaSy..."
         style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
-      <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI辨識和消費分析，只存在你的手機裡</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI辨識和消費分析</div>
     </div>
-    <div style="margin-bottom:20px">
-      <button id="toggle-key-btn" onclick="toggleKeyVisibility()" style="background:#1e293b;border:1px solid #334155;border-radius:8px;color:#94a3b8;padding:8px 14px;font-size:12px;cursor:pointer">
+    <div style="margin-bottom:4px">
+      <button id="toggle-key-btn" onclick="toggleKeyVisibility()" style="background:#1e293b;border:1px solid #334155;border-radius:8px;color:#94a3b8;padding:6px 14px;font-size:12px;cursor:pointer">
         👁️ 顯示 Key
       </button>
     </div>
+    <hr style="border-color:#1e293b;margin:16px 0">
+    <div style="font-size:13px;color:#60a5fa;font-weight:600;margin-bottom:10px">📷 收據上傳設定（Cloudinary）</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:12px">
+      免費註冊 <a href="https://cloudinary.com" target="_blank" style="color:#60a5fa">cloudinary.com</a>，
+      取得 Cloud Name 和 Upload Preset（設為 unsigned）
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">Cloud Name</label>
+      <input type="text" id="settings-cloud-name" placeholder="your-cloud-name"
+        style="width:100%;padding:10px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">Upload Preset</label>
+      <input type="text" id="settings-upload-preset" placeholder="ml_default"
+        style="width:100%;padding:10px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+    </div>
     <button onclick="saveSettings()" style="width:100%;padding:14px;background:#3b82f6;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">💾 儲存設定</button>
-    <button onclick="clearSettings()" style="width:100%;padding:10px;background:transparent;border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:13px;cursor:pointer">🗑️ 清除 Key</button>
+    <button onclick="clearSettings()" style="width:100%;padding:10px;background:transparent;border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:13px;cursor:pointer">🗑️ 清除所有設定</button>
   </div>
 </div>
 
@@ -793,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.4.5';
+const VERSION    = 'v5.5.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1976,12 +1992,12 @@ function removeFile() {
 }
 
 async function uploadFileToDrive(file, timestamp) {
-  // 先用 Canvas 壓縮圖片到最大 800px，降低 base64 大小
-  async function compressImage(file) {
+  // 圖片壓縮
+  async function compressImage(f) {
     return new Promise((res) => {
-      if (!file.type.startsWith('image/')) { res(file); return; }
+      if (!f.type.startsWith('image/')) { res(f); return; }
       const img = new Image();
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(f);
       img.onload = () => {
         const MAX = 800;
         let w = img.width, h = img.height;
@@ -1992,61 +2008,57 @@ async function uploadFileToDrive(file, timestamp) {
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => res(blob), 'image/jpeg', 0.7);
+        canvas.toBlob(blob => res(new File([blob], f.name, {type:'image/jpeg'})), 'image/jpeg', 0.7);
         URL.revokeObjectURL(url);
       };
+      img.onerror = () => res(f);
       img.src = url;
     });
   }
 
-  return new Promise((resolve, reject) => {
-    const doUpload = async (uploadFile) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const base64 = e.target.result.split(',')[1];
-          const mimeType = 'image/jpeg';
-          const fileName = timestamp.replace(/[/: ]/g, '-') + '_' + (file.name || 'receipt.jpg');
+  const prog = document.getElementById('upload-progress');
+  const fill = document.getElementById('progress-fill');
+  const text = document.getElementById('progress-text');
+  if (prog) prog.style.display = 'block';
+  if (fill) fill.style.width = '20%';
+  if (text) text.textContent = '壓縮中...';
 
-          const prog = document.getElementById('upload-progress');
-          const fill = document.getElementById('progress-fill');
-          const text = document.getElementById('progress-text');
-          if (prog) prog.style.display = 'block';
-          if (fill) fill.style.width = '30%';
-          if (text) text.textContent = '上傳中...';
+  const compressed = await compressImage(file);
 
-          // 用 hidden form POST 上傳（繞過網路限制）
-          if (fill) fill.style.width = '50%';
-          if (text) text.textContent = '上傳中...';
+  if (fill) fill.style.width = '40%';
+  if (text) text.textContent = '上傳中...';
 
-          getHiddenIframe();
-          const uploadForm = buildHiddenForm({
-            action: 'uploadFile', fileName, mimeType, fileData: base64,
-          });
-          document.body.appendChild(uploadForm);
-          uploadForm.submit();
-          document.body.removeChild(uploadForm);
+  // 用 Cloudinary 免費圖片託管（unsigned upload）
+  const CLOUD_NAME = 'democloud';  // 會在設定頁填入
+  const UPLOAD_PRESET = 'ml_default';
+  const cloudName = localStorage.getItem('cloudinary_name') || '';
+  const uploadPreset = localStorage.getItem('cloudinary_preset') || '';
 
-          // 等待上傳完成
-          await new Promise(r => setTimeout(r, 10000));
+  if (!cloudName) {
+    if (prog) prog.style.display = 'none';
+    throw new Error('請先在設定頁填入 Cloudinary Cloud Name');
+  }
 
-          if (fill) fill.style.width = '100%';
-          if (text) text.textContent = '✅ 上傳完成！';
-          setTimeout(() => { if (prog) prog.style.display = 'none'; if(fill) fill.style.width='0%'; }, 1500);
+  const formData = new FormData();
+  formData.append('file', compressed);
+  formData.append('upload_preset', uploadPreset || 'ml_default');
+  formData.append('folder', 'receipts');
 
-          // hidden form 無法取得 URL，用 Drive 搜尋連結
-          const driveUrl = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(fileName);
-          resolve(driveUrl);
-        } catch(err) {
-          console.error('upload error:', err);
-          reject(err);
-        }
-      };
-      reader.readAsDataURL(uploadFile);
-    };
-
-    compressImage(file).then(doUpload).catch(reject);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: formData
   });
+
+  if (fill) fill.style.width = '90%';
+  const result = await resp.json();
+  console.log('Cloudinary result:', result);
+
+  if (fill) fill.style.width = '100%';
+  if (text) text.textContent = result.secure_url ? '✅ 上傳成功！' : '❌ 上傳失敗';
+  setTimeout(() => { if (prog) prog.style.display = 'none'; if (fill) fill.style.width = '0%'; }, 1500);
+
+  if (result.secure_url) return result.secure_url;
+  throw new Error(result.error?.message || '上傳失敗');
 }
 
 
@@ -2249,8 +2261,9 @@ function fmtDate(dateStr) {
 //  設定功能
 // ════════════════════════════════════
 function openSettings() {
-  const saved = localStorage.getItem('gemini_key') || '';
-  document.getElementById('settings-gemini-key').value = saved;
+  document.getElementById('settings-gemini-key').value = localStorage.getItem('gemini_key') || '';
+  document.getElementById('settings-cloud-name').value = localStorage.getItem('cloudinary_name') || '';
+  document.getElementById('settings-upload-preset').value = localStorage.getItem('cloudinary_preset') || '';
   document.getElementById('settings-modal').style.display = 'flex';
 }
 
@@ -2260,23 +2273,27 @@ function closeSettings() {
 
 function saveSettings() {
   const key = document.getElementById('settings-gemini-key').value.trim();
-  if (key) {
-    localStorage.setItem('gemini_key', key);
-    GEMINI_KEY = key;
-    showToast('✅ 設定已儲存！', 'ok');
-  } else {
-    showToast('❌ 請輸入 API Key', 'err');
-    return;
-  }
+  const cloudName = document.getElementById('settings-cloud-name').value.trim();
+  const uploadPreset = document.getElementById('settings-upload-preset').value.trim();
+
+  if (key) { localStorage.setItem('gemini_key', key); GEMINI_KEY = key; }
+  if (cloudName) localStorage.setItem('cloudinary_name', cloudName);
+  if (uploadPreset) localStorage.setItem('cloudinary_preset', uploadPreset);
+
+  showToast('✅ 設定已儲存！', 'ok');
   closeSettings();
 }
 
 function clearSettings() {
-  if (!confirm('確定要清除 Gemini API Key？')) return;
+  if (!confirm('確定要清除所有設定？')) return;
   localStorage.removeItem('gemini_key');
+  localStorage.removeItem('cloudinary_name');
+  localStorage.removeItem('cloudinary_preset');
   GEMINI_KEY = '';
   document.getElementById('settings-gemini-key').value = '';
-  showToast('🗑️ Key 已清除', '');
+  document.getElementById('settings-cloud-name').value = '';
+  document.getElementById('settings-upload-preset').value = '';
+  showToast('🗑️ 設定已清除', '');
 }
 
 function toggleKeyVisibility() {
