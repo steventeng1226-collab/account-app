@@ -169,7 +169,7 @@ canvas { width: 100% !important; }
 }
 .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-.list-item {
+.list-item { overflow: hidden;
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: 9px; padding: 10px 12px;
   margin-bottom: 7px;
@@ -533,7 +533,7 @@ textarea { resize: none; height: 64px; }
   <div class="logo">
     <span>💹</span>
     <h1>流水帳統計中心</h1>
-    <span class="ver" id="ver-badge">v5.5.0</span>
+    <span class="ver" id="ver-badge">v5.5.1</span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="rate-badge" style="font-size:10px;color:#f59e0b;font-weight:600">匯率載入中...</span>
@@ -809,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.5.0';
+const VERSION    = 'v5.5.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1313,10 +1313,16 @@ function renderList() {
       <div>
         <div class="date">${fmtDate(r['日期'])}</div>
         <div class="name">${getItemName(r)}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">${r['備註（可選：詳細說明或特殊情況）']||r['備註']||''}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${(() => {
+          const note = r['備註（可選：詳細說明或特殊情況）']||r['備註']||'';
+          if (note.includes('res.cloudinary.com') || note.includes('drive.google.com/file')) {
+            return '📎 <span style="color:#60a5fa">有收據</span>';
+          }
+          return note.replace(/📎 收據：https?:\/\/\S+/g,'📎').trim();
+        })()}</div>
         <span class="cat">${r['類別']||''}</span>
       </div>
-      <div>
+      <div style="flex-shrink:0;text-align:right">
         <div class="amt">${fmt(r['台幣金額'])}</div>
         <div class="pay">${r['支付方式']||''}</div>
       </div>
