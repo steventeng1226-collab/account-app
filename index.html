@@ -809,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.5.1';
+const VERSION    = 'v5.5.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -818,7 +818,7 @@ let GEMINI_KEY = localStorage.getItem('gemini_key') || '';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
-const CATEGORIES = ['食','住','行','育','樂','醫療','保險','固定','越南固定支出','公司代墊','其他'];
+const CATEGORIES = ['食','住','行','育','樂','醫療','保險、稅','固定','越南固定','公司代墊','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
 const PAYMENTS   = ['現金','信用卡','銀行轉帳'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
@@ -2348,7 +2348,7 @@ async function triggerAIScan() {
   "item": "消費項目名稱（簡短）",
   "amount": 數字（金額，不含幣別符號）,
   "currency": "TWD 或 VND 或 USD",
-  "category": "從以下選一：食/住/行/育/樂/醫療/保險/固定/越南固定支出/公司代墊/其他",
+  "category": "從以下選一：食/住/行/育/樂/醫療/保險、稅/固定/越南固定/公司代墊/其他",
   "date": "日期 yyyy-mm-dd 格式，若無法辨識則空字串",
   "note": "補充備註（可空）"
 }`;
