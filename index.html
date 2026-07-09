@@ -809,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.5.2';
+const VERSION    = 'v5.5.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1341,7 +1341,16 @@ function renderList() {
     </div>
     ${listSearch && filtered.length === 0 ? '<div class="empty">🔍 找不到符合的記錄</div>' :
       items || '<div class="empty">這個月還沒有記錄</div>'}
-    <div class="list-caption">共 ${sorted.length} 筆${listSearch ? ` · 搜尋「${listSearch}」` : ''}</div>
+    ${(() => {
+      const sumTWD = sorted.reduce((s, r) => s + (r['台幣金額'] || 0), 0);
+      if (listSearch || listFilter !== '全部') {
+        return `<div style="background:#0f2444;border:1px solid #1e3a8a;border-radius:8px;padding:8px 12px;margin:8px 0 4px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:#93c5fd">📊 ${listSearch ? '「' + listSearch + '」' : listFilter} · ${sorted.length} 筆</span>
+          <span style="font-size:16px;font-weight:700;color:#f1f5f9;font-family:'DM Mono',monospace">NT$ ${fmt(sumTWD)}</span>
+        </div>`;
+      }
+      return '<div class="list-caption">共 ' + sorted.length + ' 筆</div>';
+    })()}
   `;
 
   // 搜尋框保持焦點
