@@ -809,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.5.3';
+const VERSION    = 'v5.6.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -888,6 +888,7 @@ async function loadData(force = false) {
   try {
     const res = await fetch(CSV_URL + '&t=' + Date.now());
     const text = await res.text();
+    try { localStorage.setItem('cached_csv', text); } catch(e) {} // 快取供下次秒開
     allData = parseCSV(text);
     return true;
   } catch(e) {
@@ -909,11 +910,13 @@ function parseCSV(text) {
     row['__sheetRow'] = i + 2; // Sheets 第1行是標題，所以資料從第2行開始
     row['__rawTimestamp'] = row['時間戳記'] || '';
     if (!row['日期']) return; // 跳過空行但行號已記錄
-    row['__rawTimestamp'] = row['時間戳記'] || '';
-    // 計算台幣金額
+    // 計算台幣金額：優先用記帳當下寫入的台幣金額（J欄，匯率固定），否則用即時匯率換算
     const amt = parseFloat(row['金額']) || 0;
     const cur = row['幣別'] || '';
-    row['台幣金額'] = cur.includes('VND') ? Math.round(amt * VND_RATE) : cur.includes('USD') ? Math.round(amt * USD_RATE) : Math.round(amt);
+    const storedTWD = parseFloat(row['台幣金額']) || 0;
+    row['__twdStored'] = storedTWD > 0;
+    row['台幣金額'] = storedTWD > 0 ? Math.round(storedTWD)
+      : cur.includes('VND') ? Math.round(amt * VND_RATE) : cur.includes('USD') ? Math.round(amt * USD_RATE) : Math.round(amt);
     // 年月
     const d = new Date(row['日期']);
     row['年月'] = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -1451,26 +1454,6 @@ function selectACEl(el) {
   updateTWD();
 }
 
-function selectAC(h) {
-  document.getElementById('inp-name').value = h.name;
-  document.getElementById('ac-list').style.display = 'none';
-  // 自動填入類別
-  if (h.category) {
-    selCat = h.category;
-  }
-  // 自動填入幣別
-  const cur = h.currency.includes('VND') ? 'VND' : h.currency.includes('USD') ? 'USD' : 'TWD';
-  selCur = cur;
-  // 自動填入支付方式
-  if (h.payment) {
-    const payMap = { '現金': '現金', '信用卡': '信用卡', '銀行轉帳': '銀行轉帳' };
-    const matched = Object.keys(payMap).find(k => h.payment.includes(k));
-    selPay = matched || '';
-  }
-  initFormPills();
-  updateTWD();
-}
-
 function hideAC() {
   setTimeout(() => {
     const list = document.getElementById('ac-list');
@@ -1788,6 +1771,9 @@ async function saveEdit() {
     }
   }
 
+  const eAmt = parseFloat(document.getElementById('edit-amt').value) || 0;
+  const twd = editSelCur === 'VND' ? Math.round(eAmt * VND_RATE) : editSelCur === 'USD' ? Math.round(eAmt * USD_RATE) : Math.round(eAmt);
+
   const payload = {
     action:     'update',
     rowNumber:  editRow['__sheetRow'] || '',
@@ -1795,32 +1781,41 @@ async function saveEdit() {
     date:       document.getElementById('edit-date').value,
     category:   editSelCat,
     item:       document.getElementById('edit-name').value.trim(),
-    amount:     parseFloat(document.getElementById('edit-amt').value) || 0,
+    amount:     eAmt,
     currency:   CUR_LABEL[editSelCur] || editSelCur,
     payment:    editSelPay,
     note:       note,
+    twd:        twd,
   };
   console.log('💾 saveEdit payload:', JSON.stringify(payload));
 
-  const btn = document.querySelector('#edit-modal .btn-primary');
-  btn.textContent = '⏳ 儲存中...'; btn.disabled = true;
+  // ── 樂觀更新本地資料，立即關窗渲染 ──
+  const row = editRow; // closeEditModal 會清空 editRow，先留參照
+  row['日期'] = payload.date;
+  row['類別'] = payload.category;
+  row['金額'] = String(eAmt);
+  row['幣別'] = payload.currency;
+  row['支付方式'] = payload.payment;
+  row['備註（可選：詳細說明或特殊情況）'] = note;
+  row['備註'] = note;
+  row['台幣金額'] = twd;
+  row['__twdStored'] = true;
+  const nk = Object.keys(row).find(k => k.includes('項目') || k.includes('名稱') || k.includes('簡述'));
+  if (nk) row[nk] = payload.item;
+  const nd = new Date(payload.date);
+  if (!isNaN(nd)) {
+    row['年月'] = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
+    row['日'] = nd.getDate();
+  }
+  showToast('✅ 已更新！', 'ok');
+  closeEditModal();
+  renderCurrentTab();
 
-  try {
-    const iframe = getHiddenIframe();
-    const form = buildHiddenForm(payload);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    await new Promise(r => setTimeout(r, 2000));
-    showToast('✅ 已更新！', 'ok');
-    closeEditModal();
+  // ── 背景送出 + 同步驗證 ──
+  submitViaForm(payload).then(async () => {
     await loadData();
     renderCurrentTab();
-  } catch(e) {
-    showToast('❌ 更新失敗：' + e.message, 'err');
-  } finally {
-    btn.textContent = '💾 儲存'; btn.disabled = false;
-  }
+  });
 }
 
 async function confirmDelete() {
@@ -1832,20 +1827,19 @@ async function confirmDelete() {
     timestamp: editRow['__rawTimestamp'] || editRow['時間戳記'] || '',
   };
   console.log('🗑️ confirmDelete payload:', JSON.stringify(payload));
-  try {
-    getHiddenIframe(); // 確保 iframe 存在
-    const form = buildHiddenForm(payload);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    await new Promise(r => setTimeout(r, 2500));
-    showToast('🗑️ 已刪除！', 'ok');
-    closeEditModal();
+
+  // ── 樂觀更新：立即從本地移除並渲染 ──
+  const row = editRow;
+  allData = allData.filter(r => r !== row);
+  showToast('🗑️ 已刪除！', 'ok');
+  closeEditModal();
+  renderCurrentTab();
+
+  // ── 背景送出，完成後重新載入校正行號（刪除會使後續行號位移）──
+  submitViaForm(payload).then(async () => {
     await loadData();
     renderCurrentTab();
-  } catch(e) {
-    showToast('❌ 刪除失敗：' + e.message, 'err');
-  }
+  });
 }
 
 function getHiddenIframe() {
@@ -1858,6 +1852,27 @@ function getHiddenIframe() {
     document.body.appendChild(iframe);
   }
   return iframe;
+}
+
+// 送出 hidden form，等 iframe onload（GAS 回應）即 resolve，最多等 8 秒
+function submitViaForm(payload) {
+  return new Promise(resolve => {
+    const iframe = getHiddenIframe();
+    let done = false;
+    const finish = ok => {
+      if (done) return;
+      done = true;
+      iframe.removeEventListener('load', onload);
+      resolve(ok);
+    };
+    const onload = () => finish(true);
+    iframe.addEventListener('load', onload);
+    setTimeout(() => finish(false), 8000);
+    const form = buildHiddenForm(payload);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  });
 }
 
 function buildHiddenForm(payload) {
@@ -1905,6 +1920,10 @@ async function submitForm() {
     note:      note,
   };
 
+  // 記帳當下的台幣金額（匯率固定，寫入 Sheets J 欄）
+  const twd = selCur === 'VND' ? Math.round(amt * VND_RATE) : selCur === 'USD' ? Math.round(amt * USD_RATE) : Math.round(amt);
+  payload.twd = twd;
+
   try {
     // 如果有選取檔案，先上傳到 Drive
     if (selectedFile) {
@@ -1918,47 +1937,39 @@ async function submitForm() {
       }
     }
 
-    getHiddenIframe();
-    const form = buildHiddenForm(payload);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-
-    await new Promise(r => setTimeout(r, 2500));
+    // ── 樂觀更新：立即加入本地資料並渲染，不等後端 ──
+    const d = new Date(date);
+    const maxRow = allData.reduce((m, r) => Math.max(m, r['__sheetRow'] || 0), 1);
+    allData.push({
+      '時間戳記': ts, '__rawTimestamp': ts,
+      '日期': date,
+      '類別': selCat,
+      '項目名稱（簡述用途）': name,
+      '金額': String(amt),
+      '幣別': payload.currency,
+      '支付方式': selPay,
+      '備註（可選：詳細說明或特殊情況）': payload.note, '備註': payload.note,
+      '收款狀態': '',
+      '台幣金額': twd, '__twdStored': true,
+      '年月': `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+      '日': d.getDate(),
+      '__sheetRow': maxRow + 1,
+    });
     showToast('✅ 已成功記帳！', 'ok');
     clearForm();
-    await loadData();
     renderCurrentTab();
+
+    // ── 背景送出 + 同步驗證 ──
+    submitViaForm(payload).then(async () => {
+      await loadData();
+      renderCurrentTab();
+    });
   } catch(e) {
     showToast('❌ 記帳失敗：' + e.message, 'err');
   } finally {
     btn.textContent = '✅ 提交記帳';
     btn.disabled = false;
   }
-}
-
-// 圖片壓縮（最大寬高 maxPx，品質 quality）
-function compressImage(file, maxPx, quality) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
-        if (w > maxPx || h > maxPx) {
-          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
-          else       { w = Math.round(w * maxPx / h); h = maxPx; }
-        }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl.split(',')[1]);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 // ════════════════════════════════════
@@ -2214,46 +2225,23 @@ function setRFilter(f) {
 async function toggleReimburse(checkbox, sheetRow, timestamp) {
   const isPaid = checkbox.checked;
   const status = isPaid ? '已收款' : '未收款';
-  checkbox.disabled = true;
-  showToast('⏳ 更新中...', '');
 
-  try {
-    // 用 hidden form POST（繞過 CORS）
-    getHiddenIframe();
-    const form = buildHiddenForm({
-      action:     'update',
-      rowNumber:  sheetRow,
-      timestamp:  timestamp,
-      reimbursed: status,
-    });
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+  // ── 樂觀更新：立即改本地狀態並渲染 ──
+  const row = allData.find(r => r['__sheetRow'] == sheetRow);
+  if (row) row['收款狀態'] = status;
+  showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
+  renderReimburse();
 
-    // 等待寫入後從 CSV 驗證
-    await new Promise(r => setTimeout(r, 3000));
-    const csvText = await fetch(CSV_URL + '&t=' + Date.now()).then(r => r.text());
-    const lines = csvText.trim().split('\n');
-    const targetLine = lines[sheetRow - 1]; // sheetRow 從1開始，index從0，標題列是index 0
-    const verified = targetLine && targetLine.includes(status);
-
-    if (verified || true) { // 就算驗證失敗也樂觀更新，避免誤判
-      const row = allData.find(r => r['__sheetRow'] == sheetRow);
-      if (row) row['收款狀態'] = status;
-      showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
-      await loadData();
-      renderReimburse();
-    }
-  } catch(e) {
-    console.error('toggleReimburse error:', e);
-    // 樂觀更新，假設成功
-    const row = allData.find(r => r['__sheetRow'] == sheetRow);
-    if (row) row['收款狀態'] = status;
-    showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
-    renderReimburse();
-  } finally {
-    checkbox.disabled = false;
-  }
+  // ── 背景送出 + 同步驗證 ──
+  submitViaForm({
+    action:     'update',
+    rowNumber:  sheetRow,
+    timestamp:  timestamp,
+    reimbursed: status,
+  }).then(async () => {
+    await loadData();
+    if (currentTab === 'reimburse') renderReimburse();
+  });
 }
 
 
@@ -2363,7 +2351,7 @@ async function triggerAIScan() {
 }`;
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2476,7 +2464,7 @@ ${summary}
 請簡潔有重點，總字數約200字。`;
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2550,15 +2538,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ver-badge').textContent = VERSION;
   initForm();
   startACWatcher();
-  // 先載入資料，匯率同步抓取
   const rateEl = document.getElementById('rate-badge');
   if (rateEl) rateEl.textContent = '匯率載入中...';
-  await loadData(); // 先把資料顯示出來
-  renderCurrentTab(); // 資料載入後渲染當前分頁
+
+  // ── 先用上次快取的 CSV 秒開畫面 ──
+  const cached = localStorage.getItem('cached_csv');
+  if (cached) {
+    try { allData = parseCSV(cached); renderCurrentTab(); } catch(e) {}
+  }
+
+  // ── 背景抓最新資料 ──
+  await loadData();
+  renderCurrentTab();
+
   fetchExchangeRate().then(() => {
-    // 匯率抓到後，重新計算台幣金額並重新渲染
+    // 匯率抓到後，只重算「沒有已存台幣金額」的舊資料
     if (allData.length) {
       allData.forEach(r => {
+        if (r['__twdStored']) return; // 記帳當下已固定匯率，不重算
         const amt = parseFloat(r['金額']) || 0;
         const cur = r['幣別'] || '';
         r['台幣金額'] = cur.includes('VND') ? Math.round(amt * VND_RATE) : cur.includes('USD') ? Math.round(amt * USD_RATE) : Math.round(amt);
