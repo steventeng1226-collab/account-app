@@ -815,7 +815,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.4';
+const VERSION    = 'v5.6.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1000,11 +1000,11 @@ function renderMonthly() {
   const total  = meSum;
   const dAvg   = tDay ? Math.round(meSum / tDay) : 0;
 
-  // 本月預估：用前3個月平均月支出推算
-  function getPrev3MonthAvg() {
+  // 本月預估：用今年度（不含本月）的月平均支出推算
+  function getYearAvg() {
     const allMonths = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
-    // 取出不含本月的前3個月
-    const prevMonths = allMonths.filter(mo => mo < selectedMonth).slice(0, 3);
+    const yr = selectedMonth.split('-')[0];
+    const prevMonths = allMonths.filter(mo => mo.startsWith(yr) && mo < selectedMonth);
     if (!prevMonths.length) return 0;
     const monthTotals = prevMonths.map(mo => {
       return allData
@@ -1013,12 +1013,12 @@ function renderMonthly() {
     });
     return Math.round(monthTotals.reduce((a,b) => a+b, 0) / monthTotals.length);
   }
-  const prev3Avg = getPrev3MonthAvg();
-  // 有前3月資料就用前3月平均，否則用本月日均推算
+  const yearAvg = getYearAvg();
+  // 有今年度資料就用今年月平均，否則用本月日均推算
   const est = isCur && tDay >= 3
-    ? (prev3Avg > 0 ? prev3Avg : Math.round(meSum / tDay * dim))
+    ? (yearAvg > 0 ? yearAvg : Math.round(meSum / tDay * dim))
     : 0;
-  const estLabel = prev3Avg > 0 ? '前3月均值' : `日均 ${fmt(dAvg)} 推算`;
+  const estLabel = yearAvg > 0 ? '今年均值' : `日均 ${fmt(dAvg)} 推算`;
 
   // 類別加總（只算個人支出，排除公司代墊）
   const catMap = {};
@@ -1186,14 +1186,17 @@ function renderTotal() {
     </div>
 
     <div style="display:flex;gap:8px;margin-top:10px">
-      <div class="chart-box" style="flex:1;height:200px">
+      <div class="chart-box" style="flex:1;height:240px">
         <div class="chart-title">全期類別佔比</div>
         <canvas id="chart-pie2"></canvas>
       </div>
-      <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px;overflow-y:auto;height:200px;box-sizing:border-box">
-        <table class="rank-table" style="font-size:11px;width:100%">
-          <tr><th>類別</th><th class="num">TWD</th></tr>
-          ${catEntries.map(([c,v]) => `<tr><td>${c}</td><td class="num">${fmt(v)}</td></tr>`).join('')}
+      <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:6px 8px;height:240px;box-sizing:border-box;overflow:hidden">
+        <table class="rank-table" style="font-size:10px;width:100%">
+          <tr><th style="padding:2px 3px">類別</th><th class="num" style="padding:2px 3px">TWD</th></tr>
+          ${catEntries.map(([c,v],i) => `<tr>
+            <td style="padding:2.5px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${PASTEL[i % PASTEL.length]};margin-right:5px;vertical-align:middle"></span>${c}</td>
+            <td class="num" style="padding:2.5px 3px">${fmt(v)}</td>
+          </tr>`).join('')}
         </table>
       </div>
     </div>
