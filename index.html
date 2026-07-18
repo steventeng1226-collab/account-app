@@ -603,7 +603,7 @@ textarea { resize: none; height: 64px; }
     <div class="form-section">
       <label class="form-label">📝 項目名稱（簡述用途）</label>
       <div class="autocomplete-wrap">
-        <input type="text" id="inp-name" placeholder="例：全聯買菜" autocomplete="off"
+        <input type="text" id="inp-name" placeholder="例：全聯買菜" autocomplete="off" name="expense-item-desc"
                onblur="setTimeout(hideAC,300)">
         <div class="autocomplete-list" id="ac-list" style="display:none"></div>
       </div>
@@ -690,8 +690,8 @@ textarea { resize: none; height: 64px; }
     </div>
     <div style="margin-bottom:16px">
       <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🤖 Gemini API Key</label>
-      <input type="password" id="settings-gemini-key" placeholder="AIzaSy..."
-        style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+      <input type="text" id="settings-gemini-key" placeholder="AIzaSy..." autocomplete="off"
+        style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box;-webkit-text-security:disc">
       <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI辨識和消費分析</div>
     </div>
     <div style="margin-bottom:4px">
@@ -742,7 +742,7 @@ textarea { resize: none; height: 64px; }
 
     <div class="form-section">
       <label class="form-label">📝 項目名稱</label>
-      <input type="text" id="edit-name">
+      <input type="text" id="edit-name" autocomplete="off" name="edit-item-desc">
     </div>
 
     <div class="form-section">
@@ -809,7 +809,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.0';
+const VERSION    = 'v5.6.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -2302,11 +2302,12 @@ function clearSettings() {
 function toggleKeyVisibility() {
   const inp = document.getElementById('settings-gemini-key');
   const btn = document.getElementById('toggle-key-btn');
-  if (inp.type === 'password') {
-    inp.type = 'text';
+  // 用 CSS 遮罩取代 type=password，避免 Chrome 把整頁當登入表單跳出密碼管理員
+  if (inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '') {
+    inp.style.webkitTextSecurity = 'none';
     btn.textContent = '🙈 隱藏 Key';
   } else {
-    inp.type = 'password';
+    inp.style.webkitTextSecurity = 'disc';
     btn.textContent = '👁️ 顯示 Key';
   }
 }
