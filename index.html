@@ -59,9 +59,12 @@ html, body {
 #header .logo span { font-size: 20px; }
 #header h1 { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: .3px; white-space: nowrap; }
 #header .ver {
-  font-size: 8px; color: #60a5fa; background: #1e3a5f;
+  font-size: 8px; line-height: 1; color: #60a5fa; background: #1e3a5f;
   border: 1px solid #2563eb44; border-radius: 20px;
-  padding: 1px 6px; font-weight: 600; white-space: nowrap;
+  padding: 0 6px; font-weight: 600; white-space: nowrap;
+  height: 14px; display: inline-flex; align-items: center;
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  max-width: none; flex-shrink: 0;
 }
 
 
@@ -811,7 +814,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.2';
+const VERSION    = 'v5.6.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
