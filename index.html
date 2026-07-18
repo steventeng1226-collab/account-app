@@ -423,6 +423,10 @@ textarea { resize: none; height: 64px; }
 }
 
 
+/* ── 全期一頁版面 ── */
+#page-total.active { display: flex; flex-direction: column; height: calc(100vh - 104px); overflow: hidden; padding: 8px 12px 6px; }
+.total-onepage { display: flex; flex-direction: column; height: 100%; gap: 8px; }
+
 /* ── 當月一頁版面 ── */
 #page-monthly.active { display: flex; flex-direction: column; height: calc(100vh - 100px); overflow: hidden; padding: 8px 12px 4px; }
 .monthly-onepage { display: flex; flex-direction: column; height: 100%; gap: 6px; }
@@ -815,7 +819,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.5';
+const VERSION    = 'v5.6.6';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1174,40 +1178,40 @@ function renderTotal() {
   const monthEntries = Object.entries(monthMap).sort((a,b) => a[0].localeCompare(b[0]));
 
   page.innerHTML = `
-    <div class="stat-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="stat-card">
-        <div class="stat-lbl">💰 個人累計</div>
-        <div class="stat-val sm">${fmt(meS)}</div>
+    <div class="total-onepage">
+      <div class="stat-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;flex-shrink:0">
+        <div class="stat-card" style="padding:8px 12px">
+          <div class="stat-lbl">💰 個人累計</div>
+          <div class="stat-val sm">${fmt(meS)}</div>
+        </div>
+        <div class="stat-card" style="border-color:#374151;background:#1a1a2e;padding:8px 12px">
+          <div class="stat-lbl" style="color:#f59e0b">🚩 代墊累計</div>
+          <div class="stat-val sm" style="color:#fbbf24">${fmt(coS)}</div>
+        </div>
       </div>
-      <div class="stat-card" style="border-color:#374151;background:#1a1a2e">
-        <div class="stat-lbl" style="color:#f59e0b">🚩 代墊累計</div>
-        <div class="stat-val sm" style="color:#fbbf24">${fmt(coS)}</div>
+
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <div class="chart-box" style="flex:1;height:210px">
+          <div class="chart-title">全期類別佔比</div>
+          <canvas id="chart-pie2"></canvas>
+        </div>
+        <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:5px 8px;height:210px;box-sizing:border-box;overflow:hidden">
+          <table class="rank-table" style="font-size:10px;width:100%">
+            <tr><th style="padding:2px 3px">類別</th><th class="num" style="padding:2px 3px">TWD</th></tr>
+            ${catEntries.map(([c,v],i) => `<tr>
+              <td style="padding:2px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${PASTEL[i % PASTEL.length]};margin-right:5px;vertical-align:middle"></span>${c}</td>
+              <td class="num" style="padding:2px 3px">${fmt(v)}</td>
+            </tr>`).join('')}
+          </table>
+        </div>
       </div>
-    </div>
 
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <div class="chart-box" style="flex:1;height:240px">
-        <div class="chart-title">全期類別佔比</div>
-        <canvas id="chart-pie2"></canvas>
+      <button class="analysis-btn" onclick="openAnalysis()" style="margin:0 auto;flex-shrink:0;padding:6px 16px">🤖 AI 消費分析</button>
+
+      <div class="chart-box" style="flex:1;min-height:0;height:auto;margin:0;display:flex;flex-direction:column">
+        <div class="chart-title" style="flex-shrink:0">月消費趨勢</div>
+        <div style="flex:1;min-height:0;position:relative"><canvas id="chart-trend"></canvas></div>
       </div>
-      <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:6px 8px;height:240px;box-sizing:border-box;overflow:hidden">
-        <table class="rank-table" style="font-size:10px;width:100%">
-          <tr><th style="padding:2px 3px">類別</th><th class="num" style="padding:2px 3px">TWD</th></tr>
-          ${catEntries.map(([c,v],i) => `<tr>
-            <td style="padding:2.5px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${PASTEL[i % PASTEL.length]};margin-right:5px;vertical-align:middle"></span>${c}</td>
-            <td class="num" style="padding:2.5px 3px">${fmt(v)}</td>
-          </tr>`).join('')}
-        </table>
-      </div>
-    </div>
-
-    <hr class="divider">
-
-    <button class="analysis-btn" onclick="openAnalysis()">🤖 AI 消費分析</button>
-
-    <div class="chart-box" style="margin-bottom:10px; height:220px">
-      <div class="chart-title">月消費趨勢</div>
-      <canvas id="chart-trend"></canvas>
     </div>
   `;
 
