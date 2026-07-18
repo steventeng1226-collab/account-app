@@ -41,6 +41,8 @@ html, body {
   font-family: 'Noto Sans TC', sans-serif;
   font-size: 13px;
   overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* ── Header ── */
@@ -55,11 +57,11 @@ html, body {
 }
 #header .logo { display: flex; align-items: center; gap: 8px; }
 #header .logo span { font-size: 20px; }
-#header h1 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
+#header h1 { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: .3px; white-space: nowrap; }
 #header .ver {
-  font-size: 9px; color: #60a5fa; background: #1e3a5f;
+  font-size: 8px; color: #60a5fa; background: #1e3a5f;
   border: 1px solid #2563eb44; border-radius: 20px;
-  padding: 2px 8px; font-weight: 600;
+  padding: 1px 6px; font-weight: 600; white-space: nowrap;
 }
 
 
@@ -809,7 +811,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.1';
+const VERSION    = 'v5.6.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
