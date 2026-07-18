@@ -704,6 +704,12 @@ textarea { resize: none; height: 64px; }
         style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box;-webkit-text-security:disc">
       <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI辨識和消費分析</div>
     </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🧠 OpenAI API Key</label>
+      <input type="text" id="settings-openai-key" placeholder="sk-..." autocomplete="off"
+        style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box;-webkit-text-security:disc">
+      <div style="font-size:11px;color:#64748b;margin-top:4px">用於AI消費分析</div>
+    </div>
     <div style="margin-bottom:4px">
       <button id="toggle-key-btn" onclick="toggleKeyVisibility()" style="background:#1e293b;border:1px solid #334155;border-radius:8px;color:#94a3b8;padding:6px 14px;font-size:12px;cursor:pointer">
         👁️ 顯示 Key
@@ -819,12 +825,13 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.6';
+const VERSION    = 'v5.6.7';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
 let GEMINI_KEY = localStorage.getItem('gemini_key') || '';
+let OPENAI_KEY = localStorage.getItem('openai_key') || '';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
@@ -2287,6 +2294,7 @@ function fmtDate(dateStr) {
 // ════════════════════════════════════
 function openSettings() {
   document.getElementById('settings-gemini-key').value = localStorage.getItem('gemini_key') || '';
+  document.getElementById('settings-openai-key').value = localStorage.getItem('openai_key') || '';
   document.getElementById('settings-cloud-name').value = localStorage.getItem('cloudinary_name') || '';
   document.getElementById('settings-upload-preset').value = localStorage.getItem('cloudinary_preset') || '';
   document.getElementById('settings-modal').style.display = 'flex';
@@ -2301,7 +2309,9 @@ function saveSettings() {
   const cloudName = document.getElementById('settings-cloud-name').value.trim();
   const uploadPreset = document.getElementById('settings-upload-preset').value.trim();
 
+  const oKey = document.getElementById('settings-openai-key').value.trim();
   if (key) { localStorage.setItem('gemini_key', key); GEMINI_KEY = key; }
+  if (oKey) { localStorage.setItem('openai_key', oKey); OPENAI_KEY = oKey; }
   if (cloudName) localStorage.setItem('cloudinary_name', cloudName);
   if (uploadPreset) localStorage.setItem('cloudinary_preset', uploadPreset);
 
@@ -2312,26 +2322,25 @@ function saveSettings() {
 function clearSettings() {
   if (!confirm('確定要清除所有設定？')) return;
   localStorage.removeItem('gemini_key');
+  localStorage.removeItem('openai_key');
   localStorage.removeItem('cloudinary_name');
   localStorage.removeItem('cloudinary_preset');
   GEMINI_KEY = '';
+  OPENAI_KEY = '';
   document.getElementById('settings-gemini-key').value = '';
+  document.getElementById('settings-openai-key').value = '';
   document.getElementById('settings-cloud-name').value = '';
   document.getElementById('settings-upload-preset').value = '';
   showToast('🗑️ 設定已清除', '');
 }
 
 function toggleKeyVisibility() {
-  const inp = document.getElementById('settings-gemini-key');
+  const inps = [document.getElementById('settings-gemini-key'), document.getElementById('settings-openai-key')];
   const btn = document.getElementById('toggle-key-btn');
   // 用 CSS 遮罩取代 type=password，避免 Chrome 把整頁當登入表單跳出密碼管理員
-  if (inp.style.webkitTextSecurity === 'disc' || inp.style.webkitTextSecurity === '') {
-    inp.style.webkitTextSecurity = 'none';
-    btn.textContent = '🙈 隱藏 Key';
-  } else {
-    inp.style.webkitTextSecurity = 'disc';
-    btn.textContent = '👁️ 顯示 Key';
-  }
+  const showing = inps[0].style.webkitTextSecurity === 'none';
+  inps.forEach(inp => { if (inp) inp.style.webkitTextSecurity = showing ? 'disc' : 'none'; });
+  btn.textContent = showing ? '👁️ 顯示 Key' : '🙈 隱藏 Key';
 }
 
 // ════════════════════════════════════
@@ -2439,8 +2448,8 @@ function applyAIResult(result) {
 
 // 消費分析
 async function openAnalysis() {
-  if (GEMINI_KEY.includes('填入')) {
-    showToast('❌ 請先填入 Gemini API Key', 'err');
+  if (!OPENAI_KEY) {
+    showToast('❌ 請先在設定頁填入 OpenAI API Key', 'err');
     return;
   }
   document.getElementById('analysis-modal').style.display = 'flex';
@@ -2486,16 +2495,25 @@ ${summary}
 
 請簡潔有重點，總字數約200字。`;
 
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      }
-    );
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + OPENAI_KEY,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 800,
+      })
+    });
     const data = await resp.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
+    if (data.error) {
+      // 顯示 OpenAI 回傳的真實錯誤（key 無效 / 額度用完等）
+      el.innerHTML = `<div style="color:#ef4444">❌ OpenAI 錯誤：${data.error.message || JSON.stringify(data.error)}</div>`;
+      return;
+    }
+    const text = data.choices?.[0]?.message?.content || '無法取得分析結果';
     el.innerHTML = `<div class="analysis-content">${text.replace(/\n/g,'<br>').replace(/\*\*/g,'<strong>').replace(/\*/g,'')}</div>`;
 
   } catch(e) {
