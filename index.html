@@ -326,7 +326,7 @@ textarea { resize: none; height: 64px; }
 .modal-box {
   background: #0f172a; border: 1px solid #1e3a8a;
   border-radius: 16px 16px 0 0;
-  width: 100%; padding: 16px 14px 32px;
+  width: 100%; padding: 16px 14px 0;
   max-height: 90vh; overflow-y: auto;
 }
 .modal-title {
@@ -339,6 +339,9 @@ textarea { resize: none; height: 64px; }
 }
 .modal-actions {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;
+  position: sticky; bottom: 0; z-index: 10;
+  background: linear-gradient(to top, #0f172a 75%, transparent);
+  padding: 10px 0 28px;
 }
 .btn-danger {
   background: #7f1d1d; border: 1px solid #ef4444;
@@ -825,7 +828,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.7';
+const VERSION    = 'v5.6.8';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
