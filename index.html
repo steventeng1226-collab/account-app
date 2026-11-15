@@ -828,7 +828,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.6.8';
+const VERSION    = 'v5.7.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -933,7 +933,8 @@ function parseCSV(text) {
     // 計算台幣金額：優先用記帳當下寫入的台幣金額（J欄，匯率固定），否則用即時匯率換算
     const amt = parseFloat(row['金額']) || 0;
     const cur = row['幣別'] || '';
-    const storedTWD = parseFloat(row['台幣金額']) || 0;
+    // J 欄（第 10 欄，index 9）用「欄位位置」讀取，不靠標題名稱，避免標題重名或未設導致讀不到
+    const storedTWD = parseFloat((vals[9] || '').replace(/"/g,'').trim()) || 0;
     row['__twdStored'] = storedTWD > 0;
     row['台幣金額'] = storedTWD > 0 ? Math.round(storedTWD)
       : cur.includes('VND') ? Math.round(amt * VND_RATE) : cur.includes('USD') ? Math.round(amt * USD_RATE) : Math.round(amt);
@@ -1355,28 +1356,27 @@ function renderList() {
     </div>
   `).join('');
 
+  const sumTWD = sorted.reduce((s, r) => s + (r['台幣金額'] || 0), 0);
+  const summaryBar = (listSearch || listFilter !== '全部')
+    ? `<div style="background:#0f2444;border:1px solid #1e3a8a;border-radius:8px;padding:8px 12px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:#93c5fd">📊 ${listSearch ? '「' + listSearch + '」' : listFilter} · ${sorted.length} 筆</span>
+        <span style="font-size:16px;font-weight:700;color:#f1f5f9;font-family:'DM Mono',monospace">NT$ ${fmt(sumTWD)}</span>
+      </div>`
+    : '';
+
   page.innerHTML = `
     <div class="list-filter">${filterBtns}</div>
     <div class="list-search-wrap">
       <input type="text" class="list-search-input" id="list-search-inp"
         placeholder="🔍 搜尋項目、類別、備註..."
         value="${listSearch}"
-        oninput="listSearch=this.value;renderList()"
-        ${listSearch ? '' : ''}>
+        oninput="listSearch=this.value;renderList()">
       ${listSearch ? `<button class="list-search-clear" onclick="listSearch='';renderList()">✕</button>` : ''}
     </div>
+    ${summaryBar}
     ${listSearch && filtered.length === 0 ? '<div class="empty">🔍 找不到符合的記錄</div>' :
       items || '<div class="empty">這個月還沒有記錄</div>'}
-    ${(() => {
-      const sumTWD = sorted.reduce((s, r) => s + (r['台幣金額'] || 0), 0);
-      if (listSearch || listFilter !== '全部') {
-        return `<div style="background:#0f2444;border:1px solid #1e3a8a;border-radius:8px;padding:8px 12px;margin:8px 0 4px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:11px;color:#93c5fd">📊 ${listSearch ? '「' + listSearch + '」' : listFilter} · ${sorted.length} 筆</span>
-          <span style="font-size:16px;font-weight:700;color:#f1f5f9;font-family:'DM Mono',monospace">NT$ ${fmt(sumTWD)}</span>
-        </div>`;
-      }
-      return '<div class="list-caption">共 ' + sorted.length + ' 筆</div>';
-    })()}
+    ${(listSearch || listFilter !== '全部') ? '' : '<div class="list-caption">共 ' + sorted.length + ' 筆</div>'}
   `;
 
   // 搜尋框保持焦點
