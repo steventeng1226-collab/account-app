@@ -871,7 +871,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.8.1';
+const VERSION    = 'v5.8.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1432,17 +1432,17 @@ function renderTotal() {
         </div>
       </div>
 
-      <div style="display:flex;gap:8px;flex-shrink:0">
-        <div class="chart-box" style="flex:1;height:210px">
-          <div class="chart-title">全期類別佔比</div>
-          <canvas id="chart-pie2"></canvas>
+      <div style="display:flex;gap:8px;flex-shrink:0;align-items:stretch">
+        <div class="chart-box" style="flex:1;height:auto;min-height:190px;display:flex;flex-direction:column">
+          <div class="chart-title" style="flex-shrink:0">全期類別佔比</div>
+          <div style="flex:1;min-height:0;position:relative"><canvas id="chart-pie2"></canvas></div>
         </div>
-        <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:5px 8px;height:210px;box-sizing:border-box;overflow:hidden">
+        <div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:5px 8px;box-sizing:border-box">
           <table class="rank-table" style="font-size:10px;width:100%">
             <tr><th style="padding:2px 3px">類別</th><th class="num" style="padding:2px 3px">TWD</th></tr>
             ${catEntries.map(([c,v],i) => `<tr>
-              <td style="padding:2px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${catColor(c)};margin-right:5px;vertical-align:middle"></span>${c}</td>
-              <td class="num" style="padding:2px 3px">${fmt(v)}</td>
+              <td style="padding:1.5px 3px;white-space:nowrap;line-height:1.35"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${catColor(c)};margin-right:5px;vertical-align:middle"></span>${c}</td>
+              <td class="num" style="padding:1.5px 3px;line-height:1.35">${fmt(v)}</td>
             </tr>`).join('')}
           </table>
         </div>
