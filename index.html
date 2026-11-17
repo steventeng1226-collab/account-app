@@ -196,6 +196,40 @@ canvas { width: 100% !important; }
 .list-item .pay { font-size: 10px; color: var(--text3); text-align: right; }
 .list-caption { font-size: 10px; color: var(--text3); text-align: center; padding: 8px 0; }
 
+/* ── 清單：按日分組的緊湊列 ── */
+.day-group { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 6px; overflow: hidden; }
+.day-head { display: flex; justify-content: space-between; align-items: center; padding: 3px 12px; background: #16213a; font-size: 11px; line-height: 1.4; font-weight: 600; color: #93c5fd; }
+.day-sum { font-family: 'DM Mono', monospace; color: #cbd5e1; }
+.list-row { display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-top: 1px solid #1f293780; cursor: pointer; min-height: 40px; }
+.list-row:active { background: #1e293b; }
+.lr-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.lr-main { flex: 1; min-width: 0; }
+.lr-name { font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lr-meta { font-size: 10px; line-height: 1.3; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.lr-right { text-align: right; flex-shrink: 0; }
+.lr-amt { font-size: 15px; line-height: 1.25; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text); }
+.lr-orig { font-size: 9.5px; line-height: 1.2; color: var(--text3); font-family: 'DM Mono', monospace; }
+.lr-warn { color: #f87171; margin-right: 6px; }
+.lr-wait { color: #fbbf24; margin-right: 6px; }
+.list-sum-bar { background: #0f2444; border: 1px solid #1e3a8a; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
+
+/* ── 記帳：金額換算提示、常用項目 ── */
+.amt-hint { font-size: 11px; color: #93c5fd; min-height: 15px; margin-top: 3px; text-align: right; font-family: 'DM Mono', monospace; }
+.quick-items { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; padding-bottom: 2px; }
+.quick-items::-webkit-scrollbar { display: none; }
+.quick-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; background: var(--bg3); border: 1px solid var(--border2); color: var(--text2); border-radius: 20px; padding: 5px 11px; font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; white-space: nowrap; }
+.quick-chip:active { background: var(--accent2); color: #fff; }
+
+/* ── 未寫入提示列 ── */
+#pending-bar { display: none; position: fixed; left: 0; right: 0; top: calc(var(--header-h) + var(--tab-h)); height: 36px; z-index: 98; background: #450a0a; border-bottom: 1px solid #ef4444; color: #fecaca; font-size: 12px; align-items: center; gap: 8px; padding: 0 12px; }
+body.has-pending #pending-bar { display: flex; }
+body.has-pending #content { top: calc(var(--header-h) + var(--tab-h) + 36px); }
+body.has-pending #page-monthly.active, body.has-pending #page-total.active { height: calc(100vh - 140px); }
+#pending-bar .pb-msg { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pending-bar button { flex-shrink: 0; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; }
+#pending-bar .pb-retry { background: #ef4444; border: none; color: #fff; font-weight: 700; }
+#pending-bar .pb-drop { background: transparent; border: 1px solid #7f1d1d; color: #fca5a5; }
+
 /* ── Form ── */
 .form-section { margin-bottom: 14px; }
 .form-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; display: block; }
@@ -449,19 +483,24 @@ textarea { resize: none; height: 64px; }
 .mo-card-val.co { color: #fbbf24; }
 .mo-card-val.est { color: #60a5fa; }
 
-.mo-charts { display: flex; gap: 6px; height: 160px; flex-shrink: 0; }
+.mo-charts { display: flex; gap: 6px; flex: 1 1 170px; min-height: 150px; max-height: 250px; }
+.mo-chart-canvas { flex: 1; min-height: 0; position: relative; }
 .mo-chart-box { flex: 1; background: #1e293b; border-radius: 10px; padding: 6px;
   border: 1px solid #334155; display: flex; flex-direction: column; min-height: 0; }
 .mo-chart-title { font-size: 10px; color: #64748b; text-align: center; margin-bottom: 2px; flex-shrink: 0; }
 .mo-chart-box canvas { flex: 1; min-height: 0; }
 
-.mo-rank { flex: 1; overflow-y: auto; min-height: 0; }
+.mo-rank { flex: 0 1 auto; overflow-y: auto; min-height: 0; }
 .rank-table-sm { width: 100%; border-collapse: collapse; font-size: 11px; }
 .rank-table-sm th { color: #64748b; font-weight: 600; padding: 3px 4px;
   border-bottom: 1px solid #1f2937; text-align: left; position: sticky; top: 0; background: #0f172a; }
 .rank-table-sm td { color: #e2e8f0; padding: 4px 4px; border-bottom: 1px solid #1f293720; }
 .rank-table-sm .num { text-align: right; font-variant-numeric: tabular-nums; }
 .rank-table-sm .pct { text-align: right; color: #60a5fa; width: 42px; }
+.rank-table-sm .diff { text-align: right; width: 76px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rank-table-sm tr.sum td { font-weight: 700; border-top: 1px solid #334155; }
+.rank-table-sm .up { color: #f87171; }
+.rank-table-sm .down { color: #4ade80; }
 
 
 /* ── 清單搜尋 ── */
@@ -573,6 +612,12 @@ textarea { resize: none; height: 64px; }
   </div>
 </div>
 
+<div id="pending-bar">
+  <span class="pb-msg" id="pending-msg"></span>
+  <button class="pb-retry" id="pending-retry" onclick="retryPending()">重送</button>
+  <button class="pb-drop" onclick="dropPending()">捨棄</button>
+</div>
+
 <!-- Content -->
 <div id="content">
 
@@ -609,6 +654,7 @@ textarea { resize: none; height: 64px; }
         <div>
           <label class="form-label">💵 金額 *</label>
           <input type="number" id="inp-amt" placeholder="0" min="0" inputmode="decimal">
+          <div class="amt-hint" id="amt-hint"></div>
         </div>
       </div>
     </div>
@@ -620,6 +666,7 @@ textarea { resize: none; height: 64px; }
                onblur="setTimeout(hideAC,300)">
         <div class="autocomplete-list" id="ac-list" style="display:none"></div>
       </div>
+      <div class="quick-items" id="quick-items" style="display:none"></div>
     </div>
 
     <hr class="divider">
@@ -678,10 +725,6 @@ textarea { resize: none; height: 64px; }
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <div class="progress-text" id="progress-text">上傳中...</div>
       </div>
-    </div>
-
-    <div class="twd-preview" id="twd-preview" style="display:none">
-      💱 換算台幣：<strong id="twd-val">0</strong> TWD
     </div>
 
     <div class="btn-row sticky-submit">
@@ -828,7 +871,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.7.0';
+const VERSION    = 'v5.8.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -843,6 +886,15 @@ const CURRENCIES = ['TWD','VND','USD'];
 const PAYMENTS   = ['現金','信用卡','銀行轉帳'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
 const PASTEL     = ['#7ec8e3','#f9c784','#a8d8a8','#f9a8d4','#c4b5fd','#fdba74','#86efac','#fda4af','#93c5fd','#fcd34d'];
+// 類別固定配色：同一類別在圓餅、清單、排行表都是同一個顏色
+const CAT_COLOR  = {
+  '固定':'#7ec8e3', '越南固定':'#f9c784', '保險、稅':'#a8d8a8', '食':'#f9a8d4', '樂':'#c4b5fd', '住':'#fdba74',
+  '行':'#86efac', '育':'#fda4af', '其他':'#93c5fd', '醫療':'#fcd34d', '公司代墊':'#94a3b8',
+};
+function catColor(c) { return CAT_COLOR[c] || '#64748b'; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 
 let allData = [];
 let charts = {};
@@ -904,17 +956,142 @@ async function fetchExchangeRate() {
 // ════════════════════════════════════
 //  資料載入
 // ════════════════════════════════════
-async function loadData(force = false) {
+async function loadData(force = false, quiet = false) {
   try {
     const res = await fetch(CSV_URL + '&t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     try { localStorage.setItem('cached_csv', text); } catch(e) {} // 快取供下次秒開
     allData = parseCSV(text);
+    mergePending();
+    renderQuickItems();
     return true;
   } catch(e) {
-    showToast('❌ 讀取失敗：' + e.message, 'err');
+    if (!quiet) showToast('❌ 讀取失敗：' + e.message, 'err');
     return false;
   }
+}
+
+// ════════════════════════════════════
+//  未寫入佇列：新記帳以「Sheets 真的出現這筆」為準，沒出現就保留並提示重送
+// ════════════════════════════════════
+let pendingTx = [];
+try { pendingTx = JSON.parse(localStorage.getItem('pending_tx') || '[]') || []; } catch(e) { pendingTx = []; }
+
+function savePending() {
+  try {
+    localStorage.setItem('pending_tx', JSON.stringify(pendingTx.map(p => ({ id: p.id, payload: p.payload, sig: p.sig, base: p.base, failed: !!p.failed }))));
+  } catch(e) {}
+}
+
+// 比對用特徵：日期 + 金額 + 項目 + 類別
+function txSig(dateStr, amt, name, cat) {
+  const d = new Date(dateStr);
+  return [d.getFullYear(), d.getMonth() + 1, d.getDate(), parseFloat(amt) || 0, String(name || '').trim(), cat || ''].join('|');
+}
+function countSig(sig) {
+  return allData.filter(r => !r['__pending'] && txSig(r['日期'], r['金額'], getItemName(r), r['類別']) === sig).length;
+}
+
+function pendingRow(p) {
+  const pl = p.payload, d = new Date(pl.date);
+  return {
+    '時間戳記': pl.timestamp, '__rawTimestamp': pl.timestamp,
+    '日期': pl.date,
+    '類別': pl.category,
+    '項目名稱（簡述用途）': pl.item,
+    '金額': String(pl.amount),
+    '幣別': pl.currency,
+    '支付方式': pl.payment,
+    '備註（可選：詳細說明或特殊情況）': pl.note, '備註': pl.note,
+    '收款狀態': '',
+    '台幣金額': pl.twd, '__twdStored': true,
+    '年月': `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+    '日': d.getDate(),
+    '__sheetRow': p.id, '__pending': true, '__failed': !!p.failed,
+  };
+}
+
+// 每次載入後呼叫：Sheets 已出現的從佇列移除，還沒出現的補回畫面
+function mergePending() {
+  allData = allData.filter(r => !r['__pending']);
+  if (pendingTx.length) {
+    const before = pendingTx.length;
+    pendingTx = pendingTx.filter(p => countSig(p.sig) <= p.base);
+    if (pendingTx.length !== before) savePending();
+    pendingTx.forEach(p => allData.push(pendingRow(p)));
+  }
+  renderPendingBar();
+}
+
+function renderPendingBar() {
+  const failed = pendingTx.filter(p => p.failed);
+  const busy = pendingTx.some(p => p.failed && p.sending) || _retrying;
+  document.body.classList.toggle('has-pending', failed.length > 0);
+  const msg = document.getElementById('pending-msg');
+  const btn = document.getElementById('pending-retry');
+  if (msg) msg.textContent = busy ? `⏳ 重送中…（${failed.length} 筆）` : `⚠️ ${failed.length} 筆記帳尚未寫入 Sheets`;
+  if (btn) btn.disabled = busy;
+}
+
+function queueTx(payload) {
+  const sig = txSig(payload.date, payload.amount, payload.item, payload.category);
+  const p = {
+    id: Date.now(), payload, sig,
+    base: countSig(sig) + pendingTx.filter(x => x.sig === sig).length,
+    failed: false,
+  };
+  pendingTx.push(p);
+  savePending();
+  allData.push(pendingRow(p));
+  sendTx(p);
+}
+
+async function sendTx(p, isRetry = false) {
+  p.sending = true;
+  renderPendingBar();
+  if (navigator.onLine !== false) await submitViaForm(p.payload);
+  // 分三次確認 Sheets 是否真的出現這筆
+  for (const wait of [0, 3000, 6000]) {
+    if (wait) await new Promise(r => setTimeout(r, wait));
+    await loadData(false, true);
+    if (!pendingTx.includes(p)) break;
+  }
+  p.sending = false;
+  if (pendingTx.includes(p)) {
+    p.failed = true;
+    savePending();
+    allData.forEach(r => { if (r['__pending'] && r['__sheetRow'] === p.id) r['__failed'] = true; });
+    if (!isRetry) showToast('⚠️ 這筆尚未寫入 Sheets，已保留待重送', 'err');
+  }
+  renderPendingBar();
+  renderCurrentTab();
+}
+
+let _retrying = false;
+async function retryPending() {
+  if (_retrying) return;
+  _retrying = true;
+  renderPendingBar();
+  await loadData(false, true); // 先確認是否其實已寫入，避免重複
+  for (const p of pendingTx.filter(x => x.failed && !x.sending)) {
+    await sendTx(p, true);
+  }
+  _retrying = false;
+  renderPendingBar();
+  renderCurrentTab();
+  const left = pendingTx.filter(x => x.failed).length;
+  showToast(left ? `⚠️ 仍有 ${left} 筆未寫入` : '✅ 已全部寫入', left ? 'err' : 'ok');
+}
+
+function dropPending() {
+  const failed = pendingTx.filter(p => p.failed);
+  if (!failed.length) return;
+  if (!confirm(`捨棄這 ${failed.length} 筆未寫入的記帳？`)) return;
+  pendingTx = pendingTx.filter(p => !p.failed);
+  savePending();
+  mergePending();
+  renderCurrentTab();
 }
 
 function parseCSV(text) {
@@ -1040,11 +1217,45 @@ function renderMonthly() {
   dfm.filter(r => !coMask(r)).forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
-  // 每日加總
-  const dayMap = {};
-  dfm.forEach(r => { dayMap[r['日']] = (dayMap[r['日']]||0) + r['台幣金額']; });
+  // 與上月比較（本月進行中 → 只比上月同期天數）
+  const pd = new Date(y, m - 2, 1);
+  const prevYM = `${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+  const hasPrev = allData.some(r => r['年月'] === prevYM);
+  const prevCat = {};
+  allData.filter(r => r['年月'] === prevYM && !coMask(r) && (!isCur || r['日'] <= tDay))
+    .forEach(r => { prevCat[r['類別']] = (prevCat[r['類別']]||0) + r['台幣金額']; });
+  const prevTotal = Object.values(prevCat).reduce((a,b) => a+b, 0);
+  const cmpLabel = isCur ? '較上月同期' : '較上月';
+  const rankRows = [...new Set([...Object.keys(catMap), ...Object.keys(prevCat)])]
+    .map(cat => [cat, catMap[cat]||0, prevCat[cat]||0])
+    .sort((a,b) => b[1]-a[1] || b[2]-a[2]);
+  const diffCell = (cur, prev) => {
+    const d = cur - prev;
+    if (!hasPrev || d === 0) return '<span style="color:#475569">—</span>';
+    return d > 0 ? `<span class="up">▲${fmt(d)}</span>` : `<span class="down">▼${fmt(-d)}</span>`;
+  };
+
+  // 累計走勢：本月個人支出逐日累計
   const days = Array.from({length: dim}, (_,i) => i+1);
-  const dayVals = days.map(d => dayMap[d]||0);
+  const perDay = {};
+  dfm.filter(r => !coMask(r)).forEach(r => { perDay[r['日']] = (perDay[r['日']]||0) + r['台幣金額']; });
+  let run = 0;
+  const cumVals = days.map(d => { run += perDay[d]||0; return d <= tDay ? run : null; });
+
+  // 對照線：今年其他月份（本月之前）的平均累計曲線
+  const refMonths = months.filter(mo => mo.startsWith(String(y)) && mo < selectedMonth);
+  let avgVals = null;
+  if (refMonths.length) {
+    const sums = new Array(dim).fill(0);
+    refMonths.forEach(mo => {
+      const pm = {};
+      allData.filter(r => r['年月'] === mo && !coMask(r)).forEach(r => { pm[r['日']] = (pm[r['日']]||0) + r['台幣金額']; });
+      let acc = 0;
+      for (let d = 1; d <= 31; d++) { acc += pm[d]||0; if (d < dim) sums[d-1] += acc; }
+      sums[dim-1] += acc; // 最後一天含對照月超出的天數
+    });
+    avgVals = sums.map(v => Math.round(v / refMonths.length));
+  }
 
   // 月份選擇器
   const monthOpts = months.map(mo => {
@@ -1086,24 +1297,31 @@ function renderMonthly() {
       <div class="mo-charts">
         <div class="mo-chart-box">
           <div class="mo-chart-title">類別佔比</div>
-          <canvas id="chart-pie"></canvas>
+          <div class="mo-chart-canvas"><canvas id="chart-pie"></canvas></div>
         </div>
         <div class="mo-chart-box">
-          <div class="mo-chart-title">每日走勢</div>
-          <canvas id="chart-bar"></canvas>
+          <div class="mo-chart-title">累計走勢　<span style="color:#60a5fa">━ 本月</span>${avgVals ? '　<span style="color:#94a3b8">┄ 今年平均</span>' : ''}</div>
+          <div class="mo-chart-canvas"><canvas id="chart-bar"></canvas></div>
         </div>
       </div>
 
       <!-- 類別排行（捲動區） -->
       <div class="mo-rank">
         <table class="rank-table-sm">
-          <tr><th>類別</th><th class="num">TWD</th><th class="pct">%</th></tr>
-          ${catEntries.map(([cat, val]) => `
+          <tr><th>類別</th><th class="num">TWD</th><th class="pct">%</th><th class="diff">${cmpLabel}</th></tr>
+          ${rankRows.map(([cat, val, prev]) => `
             <tr>
-              <td>${cat}</td>
+              <td><span class="lr-dot" style="background:${catColor(cat)};margin-right:6px"></span>${esc(cat)}</td>
               <td class="num">${fmt(val)}</td>
-              <td class="pct">${(val/total*100).toFixed(1)}%</td>
+              <td class="pct">${total ? (val/total*100).toFixed(1) : '0.0'}%</td>
+              <td class="diff">${diffCell(val, prev)}</td>
             </tr>`).join('')}
+          <tr class="sum">
+            <td>合計</td>
+            <td class="num">${fmt(total)}</td>
+            <td class="pct"></td>
+            <td class="diff">${diffCell(total, prevTotal)}</td>
+          </tr>
         </table>
       </div>
     </div>
@@ -1119,7 +1337,7 @@ function renderMonthly() {
         type: 'doughnut',
         data: {
           labels: catEntries.map(e=>e[0]),
-          datasets: [{ data: catEntries.map(e=>e[1]), backgroundColor: PASTEL, borderWidth: 0 }]
+          datasets: [{ data: catEntries.map(e=>e[1]), backgroundColor: catEntries.map(e=>catColor(e[0])), borderWidth: 0 }]
         },
         options: {
           cutout: '55%', plugins: { legend: { display: false } },
@@ -1128,23 +1346,34 @@ function renderMonthly() {
       });
     }
     if (barCtx && days.length) {
+      const lineSets = [{
+        label: '本月', data: cumVals,
+        borderColor: '#3b82f6', backgroundColor: '#3b82f622', fill: true,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.15,
+      }];
+      if (avgVals) lineSets.push({
+        label: '今年平均', data: avgVals,
+        borderColor: '#94a3b8', borderDash: [4, 3], fill: false,
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.15,
+      });
       charts['bar'] = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-          labels: days,
-          datasets: [{ data: dayVals, backgroundColor: '#2563eb', borderRadius: 3 }]
-        },
+        type: 'line',
+        data: { labels: days, datasets: lineSets },
         options: {
+          interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: item => `NT$ ${fmt(item.raw)}` } }
+            tooltip: { callbacks: {
+              title: items => `${m}/${items[0].label}`,
+              label: item => `${item.dataset.label} NT$ ${fmt(item.raw)}`
+            } }
           },
           scales: {
             x: {
               ticks: {
                 color: '#94a3b8',
                 font: { size: 9 },
-                maxRotation: 0,
+                maxRotation: 0, autoSkip: false,
                 callback: function(val, idx) {
                   // 只顯示 1, 5, 10, 15, 20, 25, 30 日
                   const d = parseInt(days[idx]);
@@ -1154,6 +1383,7 @@ function renderMonthly() {
               grid: { color: '#1f293750' }
             },
             y: {
+              beginAtZero: true,
               ticks: {
                 color: '#94a3b8', font: { size: 9 },
                 callback: v => v >= 1000 ? Math.round(v/1000)+'k' : v
@@ -1210,7 +1440,7 @@ function renderTotal() {
           <table class="rank-table" style="font-size:10px;width:100%">
             <tr><th style="padding:2px 3px">類別</th><th class="num" style="padding:2px 3px">TWD</th></tr>
             ${catEntries.map(([c,v],i) => `<tr>
-              <td style="padding:2px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${PASTEL[i % PASTEL.length]};margin-right:5px;vertical-align:middle"></span>${c}</td>
+              <td style="padding:2px 3px;white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${catColor(c)};margin-right:5px;vertical-align:middle"></span>${c}</td>
               <td class="num" style="padding:2px 3px">${fmt(v)}</td>
             </tr>`).join('')}
           </table>
@@ -1235,7 +1465,7 @@ function renderTotal() {
         type: 'doughnut',
         data: {
           labels: catEntries.map(e=>e[0]),
-          datasets: [{ data: catEntries.map(e=>e[1]), backgroundColor: PASTEL, borderWidth: 0 }]
+          datasets: [{ data: catEntries.map(e=>e[1]), backgroundColor: catEntries.map(e=>catColor(e[0])), borderWidth: 0 }]
         },
         options: { cutout: '55%', plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
       });
@@ -1278,6 +1508,7 @@ function renderTotal() {
               grid: { color: '#1f2937' }
             },
             y: {
+              beginAtZero: true,
               ticks: {
                 color: '#94a3b8', font: { size: 9 },
                 callback: v => v >= 1000 ? Math.round(v/1000) + 'k' : v
@@ -1297,27 +1528,96 @@ function renderTotal() {
 // ════════════════════════════════════
 let listFilter = '全部';
 let listSearch = '';
+let listLimit  = 100;      // 先畫 100 筆，捲到底再加
+let _listObs   = null;
+const WEEKDAY  = ['日','一','二','三','四','五','六'];
 
+// 外框（月份按鈕、搜尋框）只在月份清單變動時重畫；打字搜尋只重畫清單本體
 function renderList() {
   const page = document.getElementById('page-list');
   if (!allData.length) { page.innerHTML = '<div class="empty">📭 尚無資料</div>'; return; }
 
   const months = [...new Set(allData.map(r => r['年月']))].filter(Boolean).sort().reverse();
-  const filters = ['全部', ...months];
+  if (listFilter !== '全部' && !months.includes(listFilter)) listFilter = '全部';
+  const key = months.join(',');
 
-  function fmtMonthBtn(f, months) {
-    if (f === '全部') return '全部';
-    const [y, m] = f.split('-');
-    const isFirstOfYear = months.filter(mo => mo.startsWith(y))[0] === f;
-    return isFirstOfYear ? y + '|' + parseInt(m) + '月' : parseInt(m) + '月';
+  if (page.dataset.months !== key || !document.getElementById('list-body')) {
+    const label = f => {
+      if (f === '全部') return '全部';
+      const [yy, mm] = f.split('-');
+      const isFirstOfYear = months.filter(mo => mo.startsWith(yy))[0] === f;
+      return isFirstOfYear ? yy + '|' + parseInt(mm) + '月' : parseInt(mm) + '月';
+    };
+    page.dataset.months = key;
+    page.innerHTML = `
+      <div class="list-filter" id="list-filter">${['全部', ...months].map(f =>
+        `<button class="filter-btn" data-f="${f}" onclick="setListFilter('${f}')">${label(f)}</button>`).join('')}</div>
+      <div class="list-search-wrap">
+        <input type="text" class="list-search-input" id="list-search-inp" autocomplete="off"
+          placeholder="🔍 搜尋項目、類別、備註..."
+          oninput="setListSearch(this.value)">
+        <button class="list-search-clear" id="list-search-clear" onclick="setListSearch('', true)" style="display:none">✕</button>
+      </div>
+      <div id="list-summary"></div>
+      <div id="list-body"></div>
+    `;
+    document.getElementById('list-search-inp').value = listSearch;
   }
+  renderListBody();
+}
+
+function setListFilter(f) {
+  listFilter = f; listLimit = 100;
+  document.getElementById('content').scrollTop = 0;
+  renderListBody();
+}
+
+function setListSearch(v, clearInput) {
+  listSearch = v; listLimit = 100;
+  if (clearInput) { const inp = document.getElementById('list-search-inp'); if (inp) inp.value = ''; }
+  renderListBody();
+}
+
+function listRowHTML(r) {
+  const note = r['備註（可選：詳細說明或特殊情況）'] || r['備註'] || '';
+  const hasReceipt = note.includes('res.cloudinary.com') || note.includes('drive.google.com/file');
+  const noteTxt = note.replace(/📎 收據：https?:\/\/\S+/g, '').trim();
+  const cur  = r['幣別'] || '';
+  const code = cur.includes('VND') ? 'VND' : cur.includes('USD') ? 'USD' : '';
+  const amt  = parseFloat(r['金額']) || 0;
+  const meta = [r['類別'], r['支付方式'], noteTxt].filter(Boolean).map(esc).join(' · ');
+  const flag = r['__pending']
+    ? (r['__failed'] ? '<span class="lr-warn">⚠️ 未寫入</span>' : '<span class="lr-wait">⏳ 寫入中</span>')
+    : '';
+  const name = getItemName(r);
+  return `<div class="list-row" data-row="${r['__sheetRow']}" onclick="openEditByRow(this)">
+    <span class="lr-dot" style="background:${catColor(r['類別'])}"></span>
+    <div class="lr-main">
+      <div class="lr-name">${name ? esc(name) : '<span style="color:#64748b">（未命名）</span>'}${hasReceipt ? ' 📎' : ''}</div>
+      <div class="lr-meta">${flag}${meta}</div>
+    </div>
+    <div class="lr-right">
+      <div class="lr-amt">${fmt(r['台幣金額'])}</div>
+      ${code ? `<div class="lr-orig">${amt.toLocaleString('en-US')} ${code}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderListBody() {
+  const body = document.getElementById('list-body');
+  const summary = document.getElementById('list-summary');
+  if (!body || !summary) return;
+
+  document.querySelectorAll('#list-filter .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === listFilter));
+  const clr = document.getElementById('list-search-clear');
+  if (clr) clr.style.display = listSearch ? '' : 'none';
 
   // 月份過濾
   let filtered = listFilter === '全部' ? allData : allData.filter(r => r['年月'] === listFilter);
 
   // 搜尋過濾（項目名稱 + 類別 + 備註）
-  if (listSearch.trim()) {
-    const q = listSearch.trim().toLowerCase();
+  const q = listSearch.trim().toLowerCase();
+  if (q) {
     filtered = filtered.filter(r => {
       const name = getItemName(r).toLowerCase();
       const cat  = (r['類別'] || '').toLowerCase();
@@ -1325,64 +1625,57 @@ function renderList() {
       return name.includes(q) || cat.includes(q) || note.includes(q);
     });
   }
-  const sorted = [...filtered].sort((a,b) => {
-    const dateDiff = new Date(b['日期']) - new Date(a['日期']);
-    if (dateDiff !== 0) return dateDiff;
-    return (b['__sheetRow']||0) - (a['__sheetRow']||0);
-  });
+  const sorted = filtered.map(r => [new Date(r['日期']).getTime() || 0, r])
+    .sort((a, b) => (b[0] - a[0]) || ((b[1]['__sheetRow']||0) - (a[1]['__sheetRow']||0)))
+    .map(x => x[1]);
 
-  const filterBtns = filters.map(f => `
-    <button class="filter-btn ${f===listFilter?'active':''}" onclick="listFilter='${f}';renderList()">${fmtMonthBtn(f, months)}</button>
-  `).join('');
-
-  const items = sorted.map(r => `
-    <div class="list-item" data-row="${r['__sheetRow']}" onclick="openEditByRow(this)" style="cursor:pointer">
-      <div>
-        <div class="date">${fmtDate(r['日期'])}</div>
-        <div class="name">${getItemName(r)}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${(() => {
-          const note = r['備註（可選：詳細說明或特殊情況）']||r['備註']||'';
-          if (note.includes('res.cloudinary.com') || note.includes('drive.google.com/file')) {
-            return '📎 <span style="color:#60a5fa">有收據</span>';
-          }
-          return note.replace(/📎 收據：https?:\/\/\S+/g,'📎').trim();
-        })()}</div>
-        <span class="cat">${r['類別']||''}</span>
-      </div>
-      <div style="flex-shrink:0;text-align:right">
-        <div class="amt">${fmt(r['台幣金額'])}</div>
-        <div class="pay">${r['支付方式']||''}</div>
-      </div>
-    </div>
-  `).join('');
-
+  // 統計列（有篩選或搜尋時置頂）
   const sumTWD = sorted.reduce((s, r) => s + (r['台幣金額'] || 0), 0);
-  const summaryBar = (listSearch || listFilter !== '全部')
-    ? `<div style="background:#0f2444;border:1px solid #1e3a8a;border-radius:8px;padding:8px 12px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:#93c5fd">📊 ${listSearch ? '「' + listSearch + '」' : listFilter} · ${sorted.length} 筆</span>
+  summary.innerHTML = (q || listFilter !== '全部')
+    ? `<div class="list-sum-bar">
+        <span style="font-size:11px;color:#93c5fd">📊 ${q ? '「' + esc(listSearch.trim()) + '」' : listFilter} · ${sorted.length} 筆</span>
         <span style="font-size:16px;font-weight:700;color:#f1f5f9;font-family:'DM Mono',monospace">NT$ ${fmt(sumTWD)}</span>
       </div>`
     : '';
 
-  page.innerHTML = `
-    <div class="list-filter">${filterBtns}</div>
-    <div class="list-search-wrap">
-      <input type="text" class="list-search-input" id="list-search-inp"
-        placeholder="🔍 搜尋項目、類別、備註..."
-        value="${listSearch}"
-        oninput="listSearch=this.value;renderList()">
-      ${listSearch ? `<button class="list-search-clear" onclick="listSearch='';renderList()">✕</button>` : ''}
-    </div>
-    ${summaryBar}
-    ${listSearch && filtered.length === 0 ? '<div class="empty">🔍 找不到符合的記錄</div>' :
-      items || '<div class="empty">這個月還沒有記錄</div>'}
-    ${(listSearch || listFilter !== '全部') ? '' : '<div class="list-caption">共 ' + sorted.length + ' 筆</div>'}
-  `;
+  if (!sorted.length) {
+    body.innerHTML = q ? '<div class="empty">🔍 找不到符合的記錄</div>' : '<div class="empty">這個月還沒有記錄</div>';
+    return;
+  }
 
-  // 搜尋框保持焦點
-  if (listSearch) {
-    const inp = document.getElementById('list-search-inp');
-    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  // 每日小計（以全部符合的資料計算，不受「先畫 100 筆」影響）
+  const dayKey = r => r['年月'] + '-' + r['日'];
+  const daySum = {};
+  sorted.forEach(r => { const k = dayKey(r); daySum[k] = (daySum[k] || 0) + (r['台幣金額'] || 0); });
+
+  let html = '', lastKey = null;
+  sorted.slice(0, listLimit).forEach(r => {
+    const k = dayKey(r);
+    if (k !== lastKey) {
+      if (lastKey !== null) html += '</div>';
+      lastKey = k;
+      const d = new Date(r['日期']);
+      const wd = isNaN(d) ? '' : `（${WEEKDAY[d.getDay()]}）`;
+      html += `<div class="day-group"><div class="day-head"><span>${fmtDate(r['日期'])}${wd}</span><span class="day-sum">${fmt(daySum[k])}</span></div>`;
+    }
+    html += listRowHTML(r);
+  });
+  html += '</div>';
+
+  const rest = sorted.length - listLimit;
+  html += rest > 0
+    ? `<div class="list-caption" id="list-more" onclick="listLimit+=100;renderListBody()">載入更多（還有 ${rest} 筆）</div>`
+    : (q || listFilter !== '全部' ? '' : `<div class="list-caption">共 ${sorted.length} 筆</div>`);
+  body.innerHTML = html;
+
+  // 捲到底自動載入下一批
+  if (_listObs) { _listObs.disconnect(); _listObs = null; }
+  const more = document.getElementById('list-more');
+  if (more && 'IntersectionObserver' in window) {
+    _listObs = new IntersectionObserver(es => {
+      if (es.some(e => e.isIntersecting)) { listLimit += 100; renderListBody(); }
+    }, { root: document.getElementById('content'), rootMargin: '300px' });
+    _listObs.observe(more);
   }
 }
 
@@ -1552,7 +1845,7 @@ function initForm() {
 
   // 類別
   const catContainer = document.getElementById('pills-cat');
-  const cats = ['（未選）', ...CATEGORIES];
+  const cats = CATEGORIES;
   catContainer.innerHTML = cats.map(c => `
     <div class="pill ${c==='（未選）'&&!selCat?'selected':c===selCat?'selected':''}"
          onclick="selectPill('cat','${c}')">${c}</div>
@@ -1566,7 +1859,7 @@ function initForm() {
 
   // 支付
   const payContainer = document.getElementById('pills-pay');
-  const pays = ['（未選）', ...PAYMENTS];
+  const pays = PAYMENTS;
   payContainer.innerHTML = pays.map(p => `
     <div class="pill ${p==='（未選）'&&!selPay?'selected':p===selPay?'selected':''}"
          onclick="selectPill('pay','${p}')">${p}</div>
@@ -1577,13 +1870,14 @@ function initForm() {
 }
 
 function selectPill(type, val) {
+  // 再點一次已選的項目 = 取消選取
   if (type === 'cat') {
-    selCat = val === '（未選）' ? '' : val;
+    selCat = val === selCat ? '' : val;
   } else if (type === 'cur') {
     selCur = val;
     updateTWD();
   } else if (type === 'pay') {
-    selPay = val === '（未選）' ? '' : val;
+    selPay = val === selPay ? '' : val;
   }
   initFormPills();
 }
@@ -1592,7 +1886,7 @@ function initFormPills() {
   // 只更新 pills，不重置其他欄位
   const catContainer = document.getElementById('pills-cat');
   if (catContainer) {
-    const cats = ['（未選）', ...CATEGORIES];
+    const cats = CATEGORIES;
     catContainer.innerHTML = cats.map(c => `
       <div class="pill ${c==='（未選）'&&!selCat?'selected':c===selCat?'selected':''}"
            onclick="selectPill('cat','${c}')">${c}</div>
@@ -1606,7 +1900,7 @@ function initFormPills() {
   }
   const payContainer = document.getElementById('pills-pay');
   if (payContainer) {
-    const pays = ['（未選）', ...PAYMENTS];
+    const pays = PAYMENTS;
     payContainer.innerHTML = pays.map(p => `
       <div class="pill ${p==='（未選）'&&!selPay?'selected':p===selPay?'selected':''}"
            onclick="selectPill('pay','${p}')">${p}</div>
@@ -1615,15 +1909,55 @@ function initFormPills() {
 }
 
 function updateTWD() {
+  const hint = document.getElementById('amt-hint');
+  if (!hint) return;
   const amt = parseFloat(document.getElementById('inp-amt').value) || 0;
-  const preview = document.getElementById('twd-preview');
-  if (amt > 0) {
-    const twd = selCur === 'VND' ? Math.round(amt * VND_RATE) : selCur === 'USD' ? Math.round(amt * USD_RATE) : Math.round(amt);
-    document.getElementById('twd-val').textContent = fmt(twd);
-    preview.style.display = 'block';
+  if (amt > 0 && selCur !== 'TWD') {
+    const twd = selCur === 'VND' ? Math.round(amt * VND_RATE) : Math.round(amt * USD_RATE);
+    hint.textContent = '≈ NT$ ' + fmt(twd);
   } else {
-    preview.style.display = 'none';
+    hint.textContent = '';
   }
+}
+
+// 常用項目：近 90 天出現 2 次以上的項目，依次數排序取前 8
+let _quickItems = [];
+function renderQuickItems() {
+  const box = document.getElementById('quick-items');
+  if (!box) return;
+  const cutoff = Date.now() - 90 * 86400000;
+  const map = {};
+  allData.forEach(r => {
+    const name = getItemName(r).trim();
+    if (!name) return;
+    const t = new Date(r['日期']).getTime();
+    if (!(t >= cutoff)) return;
+    if (!map[name]) map[name] = { name, n: 0, last: -1, r };
+    map[name].n++;
+    if (t >= map[name].last) { map[name].last = t; map[name].r = r; }
+  });
+  _quickItems = Object.values(map).filter(x => x.n >= 2)
+    .sort((a, b) => b.n - a.n || b.last - a.last).slice(0, 8);
+  box.style.display = _quickItems.length ? '' : 'none';
+  box.innerHTML = _quickItems.map((x, i) =>
+    `<button type="button" class="quick-chip" onclick="applyQuickItem(${i})"><span class="lr-dot" style="background:${catColor(x.r['類別'])}"></span>${esc(x.name)}</button>`
+  ).join('');
+}
+
+function applyQuickItem(i) {
+  const x = _quickItems[i];
+  if (!x) return;
+  const r = x.r;
+  document.getElementById('inp-name').value = x.name;
+  _acLastVal = x.name;
+  if (CATEGORIES.includes(r['類別'])) selCat = r['類別'];
+  const cur = r['幣別'] || '';
+  selCur = cur.includes('VND') ? 'VND' : cur.includes('USD') ? 'USD' : 'TWD';
+  selPay = PAYMENTS.find(k => (r['支付方式'] || '').includes(k)) || '';
+  initFormPills();
+  updateTWD();
+  const a = document.getElementById('inp-amt');
+  if (!a.value) a.focus();
 }
 
 function clearForm() {
@@ -1632,8 +1966,9 @@ function clearForm() {
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-note').value = '';
   removeFile();
-  document.getElementById('twd-preview').style.display = 'none';
   initForm();
+  updateTWD();
+  renderQuickItems();
 }
 
 
@@ -1666,7 +2001,9 @@ function openEditByRow(el) {
     console.log('found result:', r ? 'YES - ' + (r['項目名稱（簡述用途）']||r['項目名稱']||'?') : 'NO');
     console.log('sample __sheetRow values:', allData.slice(0,3).map(d => d['__sheetRow'] + '(' + typeof d['__sheetRow'] + ')'));
     
-    if (r) {
+    if (r && r['__pending']) {
+      showToast(r['__failed'] ? '⚠️ 這筆尚未寫入，請先按上方「重送」' : '⏳ 寫入中，請稍候', 'err');
+    } else if (r) {
       openEditModal(r);
     } else {
       showToast('找不到 row=' + row, 'err');
@@ -1753,7 +2090,7 @@ function openEditModal(r) {
 }
 
 function renderEditPills() {
-  const cats = ['（未選）', ...CATEGORIES];
+  const cats = CATEGORIES;
   document.getElementById('edit-pills-cat').innerHTML = cats.map(c =>
     `<div class="pill ${c==='（未選）'&&!editSelCat?'selected':c===editSelCat?'selected':''}"
       onclick="editSelCat='${c==='（未選）'?'':c}';renderEditPills()">${c}</div>`
@@ -1764,7 +2101,7 @@ function renderEditPills() {
       onclick="editSelCur='${c}';renderEditPills()">${c}</div>`
   ).join('');
 
-  const pays = ['（未選）', ...PAYMENTS];
+  const pays = PAYMENTS;
   document.getElementById('edit-pills-pay').innerHTML = pays.map(p =>
     `<div class="pill ${p==='（未選）'&&!editSelPay?'selected':p===editSelPay?'selected':''}"
       onclick="editSelPay='${p==='（未選）'?'':p}';renderEditPills()">${p}</div>`
@@ -1969,33 +2306,11 @@ async function submitForm() {
       }
     }
 
-    // ── 樂觀更新：立即加入本地資料並渲染，不等後端 ──
-    const d = new Date(date);
-    const maxRow = allData.reduce((m, r) => Math.max(m, r['__sheetRow'] || 0), 1);
-    allData.push({
-      '時間戳記': ts, '__rawTimestamp': ts,
-      '日期': date,
-      '類別': selCat,
-      '項目名稱（簡述用途）': name,
-      '金額': String(amt),
-      '幣別': payload.currency,
-      '支付方式': selPay,
-      '備註（可選：詳細說明或特殊情況）': payload.note, '備註': payload.note,
-      '收款狀態': '',
-      '台幣金額': twd, '__twdStored': true,
-      '年月': `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
-      '日': d.getDate(),
-      '__sheetRow': maxRow + 1,
-    });
-    showToast('✅ 已成功記帳！', 'ok');
+    // ── 立即顯示，背景寫入；寫入與否以 Sheets 實際出現為準 ──
+    queueTx(payload);
+    showToast('✅ 已記帳', 'ok');
     clearForm();
     renderCurrentTab();
-
-    // ── 背景送出 + 同步驗證 ──
-    submitViaForm(payload).then(async () => {
-      await loadData();
-      renderCurrentTab();
-    });
   } catch(e) {
     showToast('❌ 記帳失敗：' + e.message, 'err');
   } finally {
@@ -2260,6 +2575,11 @@ async function toggleReimburse(checkbox, sheetRow, timestamp) {
 
   // ── 樂觀更新：立即改本地狀態並渲染 ──
   const row = allData.find(r => r['__sheetRow'] == sheetRow);
+  if (row && row['__pending']) {
+    checkbox.checked = !isPaid;
+    showToast('⚠️ 這筆尚未寫入 Sheets，暫時不能勾選', 'err');
+    return;
+  }
   if (row) row['收款狀態'] = status;
   showToast(isPaid ? '✅ 已標記收款！' : '↩️ 已取消收款', 'ok');
   renderReimburse();
@@ -2588,11 +2908,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── 先用上次快取的 CSV 秒開畫面 ──
   const cached = localStorage.getItem('cached_csv');
   if (cached) {
-    try { allData = parseCSV(cached); renderCurrentTab(); } catch(e) {}
+    try { allData = parseCSV(cached); mergePending(); renderQuickItems(); renderCurrentTab(); } catch(e) {}
   }
 
   // ── 背景抓最新資料 ──
   await loadData();
+  // 上次關閉前還沒確認寫入的，載入後仍不在 Sheets → 標成未寫入
+  if (pendingTx.some(p => !p.sending && !p.failed)) {
+    pendingTx.forEach(p => { if (!p.sending) p.failed = true; });
+    savePending();
+    mergePending();
+  }
   renderCurrentTab();
 
   fetchExchangeRate().then(() => {
