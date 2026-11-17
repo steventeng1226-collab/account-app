@@ -871,7 +871,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.8.0';
+const VERSION    = 'v5.8.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -881,7 +881,7 @@ let OPENAI_KEY = localStorage.getItem('openai_key') || '';
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
-const CATEGORIES = ['食','住','行','育','樂','醫療','保險、稅','固定','越南固定','公司代墊','其他'];
+const CATEGORIES = ['食','住','行','育','樂','醫療','保險、稅','固定','越南固定','公司代墊','人情往來','金融費用','其他'];
 const CURRENCIES = ['TWD','VND','USD'];
 const PAYMENTS   = ['現金','信用卡','銀行轉帳'];
 const CUR_LABEL  = { TWD:'TWD (新台幣)', VND:'VND (越南盾)', USD:'USD (美元)' };
@@ -890,6 +890,7 @@ const PASTEL     = ['#7ec8e3','#f9c784','#a8d8a8','#f9a8d4','#c4b5fd','#fdba74',
 const CAT_COLOR  = {
   '固定':'#7ec8e3', '越南固定':'#f9c784', '保險、稅':'#a8d8a8', '食':'#f9a8d4', '樂':'#c4b5fd', '住':'#fdba74',
   '行':'#86efac', '育':'#fda4af', '其他':'#93c5fd', '醫療':'#fcd34d', '公司代墊':'#94a3b8',
+  '人情往來':'#f87171', '金融費用':'#5eead4',
 };
 function catColor(c) { return CAT_COLOR[c] || '#64748b'; }
 function esc(s) {
@@ -2700,7 +2701,7 @@ async function triggerAIScan() {
   "item": "消費項目名稱（簡短）",
   "amount": 數字（金額，不含幣別符號）,
   "currency": "TWD 或 VND 或 USD",
-  "category": "從以下選一：食/住/行/育/樂/醫療/保險、稅/固定/越南固定/公司代墊/其他",
+  "category": "從以下選一：食/住/行/育/樂/醫療/保險、稅/固定/越南固定/公司代墊/人情往來/金融費用/其他（紅包、白包、送禮、請客→人情往來；利息、手續費、年費→金融費用）",
   "date": "日期 yyyy-mm-dd 格式，若無法辨識則空字串",
   "note": "補充備註（可空）"
 }`;
