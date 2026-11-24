@@ -873,7 +873,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.8.4';
+const VERSION    = 'v5.8.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1243,6 +1243,12 @@ function renderMonthly() {
     if (!avgMonths.length) return '<span style="color:#475569">—</span>';
     return fmt(avg);
   };
+  const avgDiffCell = (cur, avg) => {
+    if (!avgMonths.length) return '<span style="color:#475569">—</span>';
+    const d = cur - avg;
+    if (d === 0) return '<span style="color:#475569">—</span>';
+    return d > 0 ? `<span class="up">▲${fmt(d)}</span>` : `<span class="down">▼${fmt(-d)}</span>`;
+  };
   const curCls = (cur, avg) => (avgMonths.length && avg > 0 && cur > avg) ? ' over' : '';
 
   const rankRows = [...new Set([...Object.keys(catMap), ...Object.keys(prevCat), ...Object.keys(avgCat)])]
@@ -1327,20 +1333,20 @@ function renderMonthly() {
       <!-- 類別排行（捲動區） -->
       <div class="mo-rank">
         <table class="rank-table-sm">
-          <tr><th>類別</th><th class="num">本月</th><th class="num avg">今年月均</th><th class="pct">%</th><th class="diff">${cmpLabel}</th></tr>
+          <tr><th>類別</th><th class="num">本月</th><th class="num avg">今年月均</th><th class="diff">較月均</th><th class="diff">${cmpLabel}</th></tr>
           ${rankRows.map(([cat, val, prev, avg]) => `
             <tr>
               <td style="white-space:nowrap"><span class="lr-dot" style="background:${catColor(cat)};margin-right:5px"></span>${esc(cat)}</td>
               <td class="num${curCls(val, avg)}">${fmt(val)}</td>
               <td class="num avg">${avgCell(val, avg)}</td>
-              <td class="pct">${total ? (val/total*100).toFixed(1) : '0.0'}%</td>
+              <td class="diff">${avgDiffCell(val, avg)}</td>
               <td class="diff">${diffCell(val, prev)}</td>
             </tr>`).join('')}
           <tr class="sum">
             <td>合計</td>
             <td class="num${curCls(total, avgTotal)}">${fmt(total)}</td>
             <td class="num avg">${avgCell(total, avgTotal)}</td>
-            <td class="pct"></td>
+            <td class="diff">${avgDiffCell(total, avgTotal)}</td>
             <td class="diff">${diffCell(total, prevTotal)}</td>
           </tr>
         </table>
