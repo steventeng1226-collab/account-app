@@ -769,7 +769,7 @@ textarea { resize: none; height: 64px; }
       <div style="font-size:11px;color:#64748b;margin-top:4px">每月個人支出（不含公司代墊）跟這個金額比，算結餘或透支</div>
     </div>
     <div style="margin-bottom:16px">
-      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🎁 分紅／年獎（加進當月可用資金）</label>
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🎁 分紅／年獎（計入累計結餘，不影響每月透支判斷）</label>
       <div id="bonus-editor"></div>
       <button type="button" onclick="addBonusRow()" style="width:100%;padding:9px;background:transparent;border:1px dashed #334155;border-radius:10px;color:#94a3b8;font-size:13px;cursor:pointer;margin-top:6px">＋ 新增一筆</button>
     </div>
@@ -902,7 +902,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.9.4';
+const VERSION    = 'v5.9.5';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1272,12 +1272,12 @@ function renderMonthly() {
 
   // 每月可運用資金
   const monthBonus = bonusOf(selectedMonth);
-  const monthFund = MONTH_FUND + monthBonus;
+  const monthFund = MONTH_FUND;
   const fundLeft = monthFund - meSum;
   const daysLeft = isCur ? dim - tDay + 1 : 0;   // 含今天
   const fundSub = isCur
     ? (fundLeft > 0 ? `含今天剩${daysLeft}天 · 每天${fmt(fundLeft / daysLeft)}` : '本月已透支')
-    : `可用 ${fmt(monthFund)}${monthBonus ? '（含分紅）' : ''}`;
+    : `可用 ${fmt(monthFund)}${monthBonus ? ' · 分紅 ' + fmt(monthBonus) : ''}`;
 
   // 與上月比較（本月進行中 → 只比上月同期天數）
   const pd = new Date(y, m - 2, 1);
@@ -1513,9 +1513,10 @@ function renderTotal() {
   const curYear = String(nowD.getFullYear());
   const doneMonths = monthEntries.filter(e => e[0].startsWith(curYear) && e[0] < nowYM);   // 今年已結束的月份
   const yearSpend = monthEntries.filter(e => e[0].startsWith(curYear)).reduce((s, e) => s + e[1], 0);
-  const cumSurplus = doneMonths.reduce((s, e) => s + (fundFor(e[0]) - e[1]), 0);
-  const overN = doneMonths.filter(e => e[1] > fundFor(e[0])).length;
+  // 每月結餘／透支一律用每月可用資金計算；分紅只加進累計結餘
   const bonusTotal = doneMonths.reduce((s, e) => s + bonusOf(e[0]), 0);
+  const cumSurplus = doneMonths.reduce((s, e) => s + (MONTH_FUND - e[1]), 0) + bonusTotal;
+  const overN = doneMonths.filter(e => e[1] > MONTH_FUND).length;
   const mLbl = ym => parseInt(ym.split('-')[1]) + '月';
   const doneRange = doneMonths.length ? `${mLbl(doneMonths[0][0])}–${mLbl(doneMonths[doneMonths.length-1][0])}` : '';
 
@@ -1556,7 +1557,7 @@ function renderTotal() {
       <button class="analysis-btn" onclick="openAnalysis()" style="margin:0 auto;flex-shrink:0;padding:6px 16px">🤖 AI 消費分析</button>
 
       <div class="chart-box" style="flex:1;min-height:0;height:auto;margin:0;display:flex;flex-direction:column">
-        <div class="chart-title" style="flex-shrink:0">每月支出 vs 可用 ${fmt(MONTH_FUND)}${BONUS_LIST.length ? '＋分紅' : ''}　<span style="color:#4ade80">■結餘</span> <span style="color:#f87171">■透支</span> <span style="color:#60a5fa">■本月</span></div>
+        <div class="chart-title" style="flex-shrink:0">每月支出 vs 可用 ${fmt(MONTH_FUND)}　<span style="color:#4ade80">■結餘</span> <span style="color:#f87171">■透支</span> <span style="color:#60a5fa">■本月</span></div>
         <div style="flex:1;min-height:0;position:relative"><canvas id="chart-trend"></canvas></div>
       </div>
     </div>
@@ -1579,7 +1580,7 @@ function renderTotal() {
     if (trend && monthEntries.length) {
       const isNow = monthEntries.map(e => e[0] === nowYM);
       const vals = monthEntries.map(e => e[1]);
-      const funds = monthEntries.map(e => fundFor(e[0]));
+      const funds = monthEntries.map(() => MONTH_FUND);
       const barColor = vals.map((v, i) => isNow[i] ? '#3b82f6aa' : (v > funds[i] ? '#ef4444' : '#22c55e'));
       // 每根柱子上方標結餘／透支
       const surplusLabels = {
@@ -1620,8 +1621,9 @@ function renderTotal() {
                   const i = item.dataIndex, b = bonusOf(monthEntries[i][0]);
                   if (item.datasetIndex !== 0) return '';
                   const left = funds[i] - item.raw;
-                  return [`支出 NT$ ${fmt(item.raw)}`, ...(b ? [`可用 NT$ ${fmt(funds[i])}（含分紅 ${fmt(b)}）`] : []),
-                          `${left < 0 ? '透支' : (isNow[i] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`];
+                  return [`支出 NT$ ${fmt(item.raw)}`,
+                          `${left < 0 ? '透支' : (isNow[i] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`,
+                          ...(b ? [`分紅 NT$ ${fmt(b)}（計入累計結餘）`] : [])];
                 }
               }
             }
