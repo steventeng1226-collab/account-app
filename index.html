@@ -482,6 +482,11 @@ textarea { resize: none; height: 64px; }
 .mo-card-val { font-size: 13px; font-weight: 700; color: #f1f5f9; }
 .mo-card-val.co { color: #fbbf24; }
 .mo-card-val.est { color: #60a5fa; }
+.mo-card.pos { border-color: #166534; background: #052e16; }
+.mo-card.neg { border-color: #991b1b; background: #2a0a0a; }
+.mo-card-val.pos { color: #4ade80; }
+.mo-card-val.neg { color: #f87171; }
+.mo-card-sub { font-size: 8.5px; color: #94a3b8; margin-top: 2px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .mo-charts { display: flex; gap: 6px; flex: 1 1 170px; min-height: 150px; max-height: 250px; }
 .mo-chart-canvas { flex: 1; min-height: 0; position: relative; }
@@ -747,6 +752,13 @@ textarea { resize: none; height: 64px; }
       <button onclick="closeSettings()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
     </div>
     <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">💵 每月可運用資金（TWD）</label>
+      <input type="number" id="settings-month-fund" placeholder="170000" inputmode="numeric" min="0"
+        style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:15px;box-sizing:border-box">
+      <div style="font-size:11px;color:#64748b;margin-top:4px">每月個人支出（不含公司代墊）跟這個金額比，算結餘或透支</div>
+    </div>
+    <hr style="border-color:#1e293b;margin:0 0 16px">
+    <div style="margin-bottom:16px">
       <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🤖 Gemini API Key</label>
       <input type="text" id="settings-gemini-key" placeholder="AIzaSy..." autocomplete="off"
         style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box;-webkit-text-security:disc">
@@ -873,13 +885,29 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.8.5';
+const VERSION    = 'v5.9.0';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 const WEBHOOK    = 'https://script.google.com/macros/s/AKfycbxuzqCQMr2cR0-xnmaP8hWZSTOIVZ41nbD4QdDC0pycbw2qHUdjUAG8185sjkhD4RBY/exec';
 let GEMINI_KEY = localStorage.getItem('gemini_key') || '';
 let OPENAI_KEY = localStorage.getItem('openai_key') || '';
+const DEFAULT_FUND = 170000;
+let MONTH_FUND = DEFAULT_FUND;
+try { MONTH_FUND = parseFloat(localStorage.getItem('month_fund')) || DEFAULT_FUND; } catch(e) {}
+function fmtK(v) {
+  const a = Math.abs(v), s = v < 0 ? '−' : '+';
+  return s + (a >= 1000 ? Math.round(a / 1000) + 'k' : Math.round(a));
+}
+// 每月結餘：每個月份 個人支出（不含公司代墊）
+function monthSpendMap() {
+  const m = {};
+  allData.forEach(r => {
+    if (CO_KEYS.includes(r['類別'] || '') || !r['年月'] || r['年月'] === 'NaN-NaN') return;
+    m[r['年月']] = (m[r['年月']] || 0) + (r['台幣金額'] || 0);
+  });
+  return m;
+}
 let VND_RATE   = 0.00128; // 預設值，啟動後自動更新
 let USD_RATE   = 32.0;    // 1 USD = 32 TWD 預設值
 const CO_KEYS    = ['公司代墊'];
@@ -1220,6 +1248,13 @@ function renderMonthly() {
   dfm.filter(r => !coMask(r)).forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
+  // 每月可運用資金
+  const fundLeft = MONTH_FUND - meSum;
+  const daysLeft = isCur ? dim - tDay + 1 : 0;   // 含今天
+  const fundSub = isCur
+    ? (fundLeft > 0 ? `含今天剩${daysLeft}天 · 每天${fmt(fundLeft / daysLeft)}` : '本月已透支')
+    : `可用 ${fmt(MONTH_FUND)}`;
+
   // 與上月比較（本月進行中 → 只比上月同期天數）
   const pd = new Date(y, m - 2, 1);
   const prevYM = `${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
@@ -1304,9 +1339,10 @@ function renderMonthly() {
           <div class="mo-card-lbl">💰 個人支出</div>
           <div class="mo-card-val">${fmt(meSum)}</div>
         </div>
-        <div class="mo-card">
-          <div class="mo-card-lbl">📆 日均</div>
-          <div class="mo-card-val">${fmt(dAvg)}</div>
+        <div class="mo-card ${fundLeft < 0 ? 'neg' : 'pos'}">
+          <div class="mo-card-lbl">💵 ${isCur ? '可用餘額' : (fundLeft < 0 ? '透支' : '結餘')}</div>
+          <div class="mo-card-val ${fundLeft < 0 ? 'neg' : 'pos'}">${fundLeft < 0 ? '−' : ''}${fmt(Math.abs(fundLeft))}</div>
+          <div class="mo-card-sub">${fundSub}</div>
         </div>
         <div class="mo-card co">
           <div class="mo-card-lbl">🚩 代墊</div>
@@ -1325,7 +1361,7 @@ function renderMonthly() {
           <div class="mo-chart-canvas"><canvas id="chart-pie"></canvas></div>
         </div>
         <div class="mo-chart-box">
-          <div class="mo-chart-title">累計走勢　<span style="color:#60a5fa">━ 本月</span>${avgVals ? '　<span style="color:#94a3b8">┄ 今年平均</span>' : ''}</div>
+          <div class="mo-chart-title"><span style="color:#60a5fa">━ 本月累計</span>${avgVals ? '　<span style="color:#94a3b8">┄ 今年平均</span>' : ''}　<span style="color:#f87171">┄ 可用</span></div>
           <div class="mo-chart-canvas"><canvas id="chart-bar"></canvas></div>
         </div>
       </div>
@@ -1378,6 +1414,11 @@ function renderMonthly() {
         borderColor: '#3b82f6', backgroundColor: '#3b82f622', fill: true,
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.15,
       }];
+      lineSets.push({
+        label: '可用資金', data: days.map(() => MONTH_FUND),
+        borderColor: '#f87171', borderDash: [6, 4], fill: false,
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0,
+      });
       if (avgVals) lineSets.push({
         label: '今年平均', data: avgVals,
         borderColor: '#94a3b8', borderDash: [4, 3], fill: false,
@@ -1441,18 +1482,29 @@ function renderTotal() {
   allData.filter(r => !coMask(r)).forEach(r => { catMap[r['類別']] = (catMap[r['類別']]||0) + r['台幣金額']; });
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
-  const monthMap = {};
-  allData.filter(r => !coMask(r)).forEach(r => { monthMap[r['年月']] = (monthMap[r['年月']]||0) + r['台幣金額']; });
+  const monthMap = monthSpendMap();
   const monthEntries = Object.entries(monthMap).sort((a,b) => a[0].localeCompare(b[0]));
+  const nowD = new Date();
+  const nowYM = `${nowD.getFullYear()}-${String(nowD.getMonth()+1).padStart(2,'0')}`;
+  const doneMonths = monthEntries.filter(e => e[0] < nowYM);   // 已結束的月份
+  const cumSurplus = doneMonths.reduce((s, e) => s + (MONTH_FUND - e[1]), 0);
+  const overN = doneMonths.filter(e => e[1] > MONTH_FUND).length;
+  const mLbl = ym => parseInt(ym.split('-')[1]) + '月';
+  const doneRange = doneMonths.length ? `${mLbl(doneMonths[0][0])}–${mLbl(doneMonths[doneMonths.length-1][0])}` : '';
 
   page.innerHTML = `
     <div class="total-onepage">
-      <div class="stat-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;flex-shrink:0">
-        <div class="stat-card" style="padding:8px 12px">
+      <div class="stat-row" style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:6px;margin:0;flex-shrink:0">
+        <div class="stat-card" style="padding:7px 9px">
           <div class="stat-lbl">💰 個人累計</div>
           <div class="stat-val sm">${fmt(meS)}</div>
         </div>
-        <div class="stat-card" style="border-color:#374151;background:#1a1a2e;padding:8px 12px">
+        <div class="stat-card" style="padding:7px 9px;border-color:${cumSurplus < 0 ? '#991b1b' : '#166534'};background:${cumSurplus < 0 ? '#2a0a0a' : '#052e16'}">
+          <div class="stat-lbl" style="color:${cumSurplus < 0 ? '#fca5a5' : '#86efac'}">💵 累計${cumSurplus < 0 ? '透支' : '結餘'}</div>
+          <div class="stat-val sm" style="color:${cumSurplus < 0 ? '#f87171' : '#4ade80'}">${cumSurplus < 0 ? '−' : ''}${fmt(Math.abs(cumSurplus))}</div>
+          <div style="font-size:8.5px;color:#94a3b8;margin-top:1px;white-space:nowrap">${doneRange} · 透支 ${overN}/${doneMonths.length} 個月</div>
+        </div>
+        <div class="stat-card" style="border-color:#374151;background:#1a1a2e;padding:7px 9px">
           <div class="stat-lbl" style="color:#f59e0b">🚩 代墊累計</div>
           <div class="stat-val sm" style="color:#fbbf24">${fmt(coS)}</div>
         </div>
@@ -1477,7 +1529,7 @@ function renderTotal() {
       <button class="analysis-btn" onclick="openAnalysis()" style="margin:0 auto;flex-shrink:0;padding:6px 16px">🤖 AI 消費分析</button>
 
       <div class="chart-box" style="flex:1;min-height:0;height:auto;margin:0;display:flex;flex-direction:column">
-        <div class="chart-title" style="flex-shrink:0">月消費趨勢</div>
+        <div class="chart-title" style="flex-shrink:0">每月支出 vs 可用 ${fmt(MONTH_FUND)}　<span style="color:#4ade80">■結餘</span> <span style="color:#f87171">■透支</span> <span style="color:#60a5fa">■本月</span></div>
         <div style="flex:1;min-height:0;position:relative"><canvas id="chart-trend"></canvas></div>
       </div>
     </div>
@@ -1498,44 +1550,62 @@ function renderTotal() {
       });
     }
     if (trend && monthEntries.length) {
-      // 月份標籤：2026-02 → 2/26 或 26年2月
-      const trendLabels = monthEntries.map(e => {
-        const [y, m] = e[0].split('-');
-        return `${parseInt(m)}月`;
-      });
+      const isNow = monthEntries.map(e => e[0] === nowYM);
+      const vals = monthEntries.map(e => e[1]);
+      const barColor = vals.map((v, i) => isNow[i] ? '#3b82f6aa' : (v > MONTH_FUND ? '#ef4444' : '#22c55e'));
+      // 每根柱子上方標結餘／透支
+      const surplusLabels = {
+        id: 'surplusLabels',
+        afterDatasetsDraw(chart) {
+          const { ctx } = chart;
+          const meta = chart.getDatasetMeta(0);
+          ctx.save();
+          ctx.font = '600 9px "DM Mono", monospace';
+          ctx.textAlign = 'center';
+          meta.data.forEach((bar, i) => {
+            const left = MONTH_FUND - vals[i];
+            ctx.fillStyle = isNow[i] ? '#93c5fd' : (left < 0 ? '#f87171' : '#4ade80');
+            ctx.fillText(fmtK(left), bar.x, bar.y - 4);
+          });
+          ctx.restore();
+        }
+      };
       charts['trend'] = new Chart(trend, {
-        type: 'line',
         data: {
-          labels: trendLabels,
-          datasets: [{
-            data: monthEntries.map(e=>e[1]),
-            borderColor: '#3b82f6', backgroundColor: '#3b82f620',
-            tension: 0.3, fill: true, pointRadius: 5, pointBackgroundColor: '#3b82f6',
-            pointHoverRadius: 7,
-          }]
+          labels: monthEntries.map(e => mLbl(e[0])),
+          datasets: [
+            { type: 'bar', label: '支出', data: vals, backgroundColor: barColor, borderRadius: 3, maxBarThickness: 26, order: 2 },
+            { type: 'line', label: '可用', data: vals.map(() => MONTH_FUND), borderColor: '#f87171', borderDash: [6, 4],
+              borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false, order: 1 },
+          ]
         },
+        plugins: [surplusLabels],
         options: {
           plugins: {
             legend: { display: false },
             tooltip: {
+              filter: item => item.datasetIndex === 0,
               callbacks: {
                 title: (items) => {
-                  const idx = items[0].dataIndex;
-                  const [y, m] = monthEntries[idx][0].split('-');
-                  return `${y}年${parseInt(m)}月`;
+                  const [y, m] = monthEntries[items[0].dataIndex][0].split('-');
+                  return `${y}年${parseInt(m)}月${isNow[items[0].dataIndex] ? '（進行中）' : ''}`;
                 },
-                label: (item) => `NT$ ${fmt(item.raw)}`
+                label: (item) => {
+                  const left = MONTH_FUND - item.raw;
+                  return [`支出 NT$ ${fmt(item.raw)}`, `${left < 0 ? '透支' : (isNow[item.dataIndex] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`];
+                }
               }
             }
           },
-          layout: { padding: { bottom: 8 } },
+          layout: { padding: { top: 14, bottom: 4 } },
           scales: {
             x: {
               ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 },
-              grid: { color: '#1f2937' }
+              grid: { display: false }
             },
             y: {
               beginAtZero: true,
+              suggestedMax: MONTH_FUND * 1.15,
               ticks: {
                 color: '#94a3b8', font: { size: 9 },
                 callback: v => v >= 1000 ? Math.round(v/1000) + 'k' : v
@@ -2646,6 +2716,7 @@ function openSettings() {
   document.getElementById('settings-openai-key').value = localStorage.getItem('openai_key') || '';
   document.getElementById('settings-cloud-name').value = localStorage.getItem('cloudinary_name') || '';
   document.getElementById('settings-upload-preset').value = localStorage.getItem('cloudinary_preset') || '';
+  document.getElementById('settings-month-fund').value = MONTH_FUND;
   document.getElementById('settings-modal').style.display = 'flex';
 }
 
@@ -2663,9 +2734,15 @@ function saveSettings() {
   if (oKey) { localStorage.setItem('openai_key', oKey); OPENAI_KEY = oKey; }
   if (cloudName) localStorage.setItem('cloudinary_name', cloudName);
   if (uploadPreset) localStorage.setItem('cloudinary_preset', uploadPreset);
+  const fund = parseFloat(document.getElementById('settings-month-fund').value);
+  if (fund > 0) {
+    MONTH_FUND = Math.round(fund);
+    try { localStorage.setItem('month_fund', String(MONTH_FUND)); } catch(e) {}
+  }
 
   showToast('✅ 設定已儲存！', 'ok');
   closeSettings();
+  renderCurrentTab();
 }
 
 function clearSettings() {
