@@ -103,7 +103,18 @@ html, body {
   left: 0; right: 0; bottom: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
+
+/* ── 下拉更新 ── */
+#ptr {
+  position: fixed; left: 50%; top: calc(var(--header-h) + var(--tab-h) + 6px);
+  transform: translate(-50%, -60px); opacity: 0; z-index: 250; pointer-events: none;
+  background: #1e293b; border: 1px solid #3b82f6; color: #bfdbfe; border-radius: 20px;
+  padding: 6px 14px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 4px 16px #00000080;
+}
+#ptr.anim { transition: transform .2s, opacity .2s; }
 .page { display: none; padding: 12px 10px 80px; }
 .page.active { display: block; }
 
@@ -797,6 +808,7 @@ textarea { resize: none; height: 64px; }
         style="width:100%;padding:10px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;box-sizing:border-box">
     </div>
     <button onclick="saveSettings()" style="width:100%;padding:14px;background:#3b82f6;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">💾 儲存設定</button>
+    <button onclick="forceUpdateApp()" style="width:100%;padding:12px;background:#1e293b;border:1px solid #3b82f6;border-radius:12px;color:#93c5fd;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px">🔄 強制更新到最新版（目前 <span id="settings-ver"></span>）</button>
     <button onclick="clearSettings()" style="width:100%;padding:10px;background:transparent;border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:13px;cursor:pointer">🗑️ 清除所有設定</button>
   </div>
 </div>
@@ -890,7 +902,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.9.2';
+const VERSION    = 'v5.9.3';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -2735,6 +2747,7 @@ function openSettings() {
   document.getElementById('settings-cloud-name').value = localStorage.getItem('cloudinary_name') || '';
   document.getElementById('settings-upload-preset').value = localStorage.getItem('cloudinary_preset') || '';
   document.getElementById('settings-month-fund').value = MONTH_FUND;
+  const sv = document.getElementById('settings-ver'); if (sv) sv.textContent = VERSION;
   renderBonusEditor();
   document.getElementById('settings-modal').style.display = 'flex';
 }
@@ -3012,6 +3025,97 @@ function showToast(msg, type='') {
   t.className = 'show ' + type;
   setTimeout(() => t.className = '', 2800);
 }
+
+// ════════════════════════════════════
+//  版本更新：下拉檢查 GitHub 上的最新版
+// ════════════════════════════════════
+async function fetchLatestVersion() {
+  const r = await fetch('./index.html?t=' + Date.now(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const m = (await r.text()).match(/const VERSION\s*=\s*'([^']+)'/);
+  return m ? m[1] : null;
+}
+
+// 清掉快取與 Service Worker，用新網址重新載入，確保拿到最新的 index.html
+async function hardReload(tag) {
+  try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch(e) {}
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch(e) {}
+  location.replace(location.pathname + '?v=' + encodeURIComponent(tag || Date.now()));
+}
+
+async function forceUpdateApp() {
+  showToast('⏳ 重新載入最新版…', '');
+  let v = null;
+  try { v = await fetchLatestVersion(); } catch(e) {}
+  hardReload(v || Date.now());
+}
+
+(function setupPullToRefresh() {
+  const el = document.getElementById('content');
+  if (!el) return;
+  const ind = document.createElement('div');
+  ind.id = 'ptr';
+  document.body.appendChild(ind);
+  const TRIGGER = 65;
+  let startY = null, startX = 0, dist = 0, busy = false;
+
+  const show = (txt, d) => {
+    ind.textContent = txt;
+    ind.style.opacity = d > 8 ? Math.min(1, d / TRIGGER) : 0;
+    ind.style.transform = `translate(-50%, ${Math.min(d, 90) - 50}px)`;
+  };
+  const hide = () => { ind.classList.add('anim'); ind.style.opacity = 0; ind.style.transform = 'translate(-50%, -60px)'; };
+
+  el.addEventListener('touchstart', e => {
+    if (busy || el.scrollTop > 0 || e.touches.length !== 1) { startY = null; return; }
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dist = 0;
+    ind.classList.remove('anim');
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if (startY === null) return;
+    const dy = e.touches[0].clientY - startY;
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    if (el.scrollTop > 0) { startY = null; if (dist) { dist = 0; hide(); } return; }
+    if (dist === 0) {
+      if (dx > 10 && dx > dy) { startY = null; return; }   // 橫向滑動，不處理
+      if (dy < 0) { startY = null; return; }               // 往上滑＝一般捲動
+      if (dy < 6) return;                                  // 還沒確定方向
+    }
+    if (dy <= 0) { dist = 0; hide(); return; }             // 拉回去＝取消
+    dist = dy * 0.5;
+    show(dist >= TRIGGER ? '↻ 放開更新' : '↓ 下拉更新', dist);
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
+  el.addEventListener('touchend', async () => {
+    if (startY === null) return;
+    startY = null;
+    if (dist < TRIGGER) { hide(); return; }
+    busy = true;
+    ind.classList.add('anim');
+    show('⏳ 檢查新版本…', TRIGGER);
+    try {
+      const latest = await fetchLatestVersion();
+      if (latest && latest !== VERSION) {
+        show(`⬇️ 更新到 ${latest}…`, TRIGGER);
+        await hardReload(latest);
+        return;
+      }
+    } catch(e) {}
+    show('⏳ 更新資料…', TRIGGER);
+    await loadData();
+    renderCurrentTab();
+    hide();
+    busy = false;
+    showToast(`✅ 已是最新版 ${VERSION}，資料已更新`, 'ok');
+  });
+})();
 
 // ════════════════════════════════════
 //  Service Worker
