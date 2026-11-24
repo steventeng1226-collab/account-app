@@ -902,7 +902,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.9.3';
+const VERSION    = 'v5.9.4';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1603,8 +1603,6 @@ function renderTotal() {
           labels: monthEntries.map(e => mLbl(e[0])),
           datasets: [
             { type: 'bar', label: '支出', data: vals, backgroundColor: barColor, borderRadius: 3, maxBarThickness: 26, order: 2 },
-            { type: 'line', label: '可用', data: funds, stepped: 'middle', borderColor: '#f87171', borderDash: [6, 4],
-              borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false, order: 1 },
           ]
         },
         plugins: [surplusLabels],
@@ -1620,6 +1618,7 @@ function renderTotal() {
                 },
                 label: (item) => {
                   const i = item.dataIndex, b = bonusOf(monthEntries[i][0]);
+                  if (item.datasetIndex !== 0) return '';
                   const left = funds[i] - item.raw;
                   return [`支出 NT$ ${fmt(item.raw)}`, ...(b ? [`可用 NT$ ${fmt(funds[i])}（含分紅 ${fmt(b)}）`] : []),
                           `${left < 0 ? '透支' : (isNow[i] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`];
@@ -1635,7 +1634,7 @@ function renderTotal() {
             },
             y: {
               beginAtZero: true,
-              suggestedMax: Math.max(...funds) * 1.15,
+              suggestedMax: Math.max(MONTH_FUND, ...vals) * 1.12,
               ticks: {
                 color: '#94a3b8', font: { size: 9 },
                 callback: v => v >= 1000 ? Math.round(v/1000) + 'k' : v
