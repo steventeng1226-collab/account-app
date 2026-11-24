@@ -746,7 +746,7 @@ textarea { resize: none; height: 64px; }
 <!-- Edit/Delete Modal -->
 <!-- 設定 Modal -->
 <div id="settings-modal" style="display:none;position:fixed;inset:0;background:#00000088;z-index:600;align-items:flex-end" onclick="if(event.target===this)closeSettings()">
-  <div style="background:#0f172a;border-radius:20px 20px 0 0;padding:24px 16px 40px;width:100%;box-sizing:border-box">
+  <div style="background:#0f172a;border-radius:20px 20px 0 0;padding:24px 16px 40px;width:100%;box-sizing:border-box;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:16px;font-weight:700;color:#e2e8f0">⚙️ 設定</div>
       <button onclick="closeSettings()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
@@ -756,6 +756,11 @@ textarea { resize: none; height: 64px; }
       <input type="number" id="settings-month-fund" placeholder="170000" inputmode="numeric" min="0"
         style="width:100%;padding:12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:15px;box-sizing:border-box">
       <div style="font-size:11px;color:#64748b;margin-top:4px">每月個人支出（不含公司代墊）跟這個金額比，算結餘或透支</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">🎁 分紅／年獎（加進當月可用資金）</label>
+      <div id="bonus-editor"></div>
+      <button type="button" onclick="addBonusRow()" style="width:100%;padding:9px;background:transparent;border:1px dashed #334155;border-radius:10px;color:#94a3b8;font-size:13px;cursor:pointer;margin-top:6px">＋ 新增一筆</button>
     </div>
     <hr style="border-color:#1e293b;margin:0 0 16px">
     <div style="margin-bottom:16px">
@@ -885,7 +890,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.9.0';
+const VERSION    = 'v5.9.1';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -895,6 +900,11 @@ let OPENAI_KEY = localStorage.getItem('openai_key') || '';
 const DEFAULT_FUND = 170000;
 let MONTH_FUND = DEFAULT_FUND;
 try { MONTH_FUND = parseFloat(localStorage.getItem('month_fund')) || DEFAULT_FUND; } catch(e) {}
+// 分紅／年獎：[{ym:'2026-02', amt:200000}]，加進該月的可用資金
+let BONUS_LIST = [];
+try { BONUS_LIST = JSON.parse(localStorage.getItem('bonus_list') || '[]') || []; } catch(e) { BONUS_LIST = []; }
+function bonusOf(ym) { return BONUS_LIST.filter(b => b.ym === ym).reduce((s, b) => s + (b.amt || 0), 0); }
+function fundFor(ym) { return MONTH_FUND + bonusOf(ym); }
 function fmtK(v) {
   const a = Math.abs(v), s = v < 0 ? '−' : '+';
   return s + (a >= 1000 ? Math.round(a / 1000) + 'k' : Math.round(a));
@@ -1249,11 +1259,13 @@ function renderMonthly() {
   const catEntries = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
 
   // 每月可運用資金
-  const fundLeft = MONTH_FUND - meSum;
+  const monthBonus = bonusOf(selectedMonth);
+  const monthFund = MONTH_FUND + monthBonus;
+  const fundLeft = monthFund - meSum;
   const daysLeft = isCur ? dim - tDay + 1 : 0;   // 含今天
   const fundSub = isCur
     ? (fundLeft > 0 ? `含今天剩${daysLeft}天 · 每天${fmt(fundLeft / daysLeft)}` : '本月已透支')
-    : `可用 ${fmt(MONTH_FUND)}`;
+    : `可用 ${fmt(monthFund)}${monthBonus ? '（含分紅）' : ''}`;
 
   // 與上月比較（本月進行中 → 只比上月同期天數）
   const pd = new Date(y, m - 2, 1);
@@ -1415,7 +1427,7 @@ function renderMonthly() {
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.15,
       }];
       lineSets.push({
-        label: '可用資金', data: days.map(() => MONTH_FUND),
+        label: '可用資金', data: days.map(() => monthFund),
         borderColor: '#f87171', borderDash: [6, 4], fill: false,
         borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0,
       });
@@ -1487,8 +1499,9 @@ function renderTotal() {
   const nowD = new Date();
   const nowYM = `${nowD.getFullYear()}-${String(nowD.getMonth()+1).padStart(2,'0')}`;
   const doneMonths = monthEntries.filter(e => e[0] < nowYM);   // 已結束的月份
-  const cumSurplus = doneMonths.reduce((s, e) => s + (MONTH_FUND - e[1]), 0);
-  const overN = doneMonths.filter(e => e[1] > MONTH_FUND).length;
+  const cumSurplus = doneMonths.reduce((s, e) => s + (fundFor(e[0]) - e[1]), 0);
+  const overN = doneMonths.filter(e => e[1] > fundFor(e[0])).length;
+  const bonusTotal = doneMonths.reduce((s, e) => s + bonusOf(e[0]), 0);
   const mLbl = ym => parseInt(ym.split('-')[1]) + '月';
   const doneRange = doneMonths.length ? `${mLbl(doneMonths[0][0])}–${mLbl(doneMonths[doneMonths.length-1][0])}` : '';
 
@@ -1502,7 +1515,7 @@ function renderTotal() {
         <div class="stat-card" style="padding:7px 9px;border-color:${cumSurplus < 0 ? '#991b1b' : '#166534'};background:${cumSurplus < 0 ? '#2a0a0a' : '#052e16'}">
           <div class="stat-lbl" style="color:${cumSurplus < 0 ? '#fca5a5' : '#86efac'}">💵 累計${cumSurplus < 0 ? '透支' : '結餘'}</div>
           <div class="stat-val sm" style="color:${cumSurplus < 0 ? '#f87171' : '#4ade80'}">${cumSurplus < 0 ? '−' : ''}${fmt(Math.abs(cumSurplus))}</div>
-          <div style="font-size:8.5px;color:#94a3b8;margin-top:1px;white-space:nowrap">${doneRange} · 透支 ${overN}/${doneMonths.length} 個月</div>
+          <div style="font-size:8.5px;color:#94a3b8;margin-top:1px;white-space:nowrap">${doneRange} · 透支 ${overN}/${doneMonths.length} 個月${bonusTotal ? '<br>含分紅 ' + fmt(bonusTotal) : ''}</div>
         </div>
         <div class="stat-card" style="border-color:#374151;background:#1a1a2e;padding:7px 9px">
           <div class="stat-lbl" style="color:#f59e0b">🚩 代墊累計</div>
@@ -1529,7 +1542,7 @@ function renderTotal() {
       <button class="analysis-btn" onclick="openAnalysis()" style="margin:0 auto;flex-shrink:0;padding:6px 16px">🤖 AI 消費分析</button>
 
       <div class="chart-box" style="flex:1;min-height:0;height:auto;margin:0;display:flex;flex-direction:column">
-        <div class="chart-title" style="flex-shrink:0">每月支出 vs 可用 ${fmt(MONTH_FUND)}　<span style="color:#4ade80">■結餘</span> <span style="color:#f87171">■透支</span> <span style="color:#60a5fa">■本月</span></div>
+        <div class="chart-title" style="flex-shrink:0">每月支出 vs 可用 ${fmt(MONTH_FUND)}${BONUS_LIST.length ? '＋分紅' : ''}　<span style="color:#4ade80">■結餘</span> <span style="color:#f87171">■透支</span> <span style="color:#60a5fa">■本月</span></div>
         <div style="flex:1;min-height:0;position:relative"><canvas id="chart-trend"></canvas></div>
       </div>
     </div>
@@ -1552,7 +1565,8 @@ function renderTotal() {
     if (trend && monthEntries.length) {
       const isNow = monthEntries.map(e => e[0] === nowYM);
       const vals = monthEntries.map(e => e[1]);
-      const barColor = vals.map((v, i) => isNow[i] ? '#3b82f6aa' : (v > MONTH_FUND ? '#ef4444' : '#22c55e'));
+      const funds = monthEntries.map(e => fundFor(e[0]));
+      const barColor = vals.map((v, i) => isNow[i] ? '#3b82f6aa' : (v > funds[i] ? '#ef4444' : '#22c55e'));
       // 每根柱子上方標結餘／透支
       const surplusLabels = {
         id: 'surplusLabels',
@@ -1563,7 +1577,7 @@ function renderTotal() {
           ctx.font = '600 9px "DM Mono", monospace';
           ctx.textAlign = 'center';
           meta.data.forEach((bar, i) => {
-            const left = MONTH_FUND - vals[i];
+            const left = funds[i] - vals[i];
             ctx.fillStyle = isNow[i] ? '#93c5fd' : (left < 0 ? '#f87171' : '#4ade80');
             ctx.fillText(fmtK(left), bar.x, bar.y - 4);
           });
@@ -1575,7 +1589,7 @@ function renderTotal() {
           labels: monthEntries.map(e => mLbl(e[0])),
           datasets: [
             { type: 'bar', label: '支出', data: vals, backgroundColor: barColor, borderRadius: 3, maxBarThickness: 26, order: 2 },
-            { type: 'line', label: '可用', data: vals.map(() => MONTH_FUND), borderColor: '#f87171', borderDash: [6, 4],
+            { type: 'line', label: '可用', data: funds, stepped: 'middle', borderColor: '#f87171', borderDash: [6, 4],
               borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false, order: 1 },
           ]
         },
@@ -1591,8 +1605,10 @@ function renderTotal() {
                   return `${y}年${parseInt(m)}月${isNow[items[0].dataIndex] ? '（進行中）' : ''}`;
                 },
                 label: (item) => {
-                  const left = MONTH_FUND - item.raw;
-                  return [`支出 NT$ ${fmt(item.raw)}`, `${left < 0 ? '透支' : (isNow[item.dataIndex] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`];
+                  const i = item.dataIndex, b = bonusOf(monthEntries[i][0]);
+                  const left = funds[i] - item.raw;
+                  return [`支出 NT$ ${fmt(item.raw)}`, ...(b ? [`可用 NT$ ${fmt(funds[i])}（含分紅 ${fmt(b)}）`] : []),
+                          `${left < 0 ? '透支' : (isNow[i] ? '剩餘' : '結餘')} NT$ ${fmt(Math.abs(left))}`];
                 }
               }
             }
@@ -1605,7 +1621,7 @@ function renderTotal() {
             },
             y: {
               beginAtZero: true,
-              suggestedMax: MONTH_FUND * 1.15,
+              suggestedMax: Math.max(...funds) * 1.15,
               ticks: {
                 color: '#94a3b8', font: { size: 9 },
                 callback: v => v >= 1000 ? Math.round(v/1000) + 'k' : v
@@ -2717,7 +2733,28 @@ function openSettings() {
   document.getElementById('settings-cloud-name').value = localStorage.getItem('cloudinary_name') || '';
   document.getElementById('settings-upload-preset').value = localStorage.getItem('cloudinary_preset') || '';
   document.getElementById('settings-month-fund').value = MONTH_FUND;
+  renderBonusEditor();
   document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function bonusRowHTML(b) {
+  const inp = 'padding:10px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;box-sizing:border-box;min-width:0';
+  return `<div class="bonus-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    <input type="month" class="b-ym" value="${b.ym || ''}" style="${inp};flex:1.1">
+    <input type="number" class="b-amt" value="${b.amt || ''}" placeholder="金額 TWD" inputmode="numeric" min="0" style="${inp};flex:1">
+    <button type="button" onclick="this.parentElement.remove()" style="flex-shrink:0;background:#ef444420;border:1px solid #ef444450;color:#ef4444;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">✕</button>
+  </div>`;
+}
+function renderBonusEditor() {
+  const box = document.getElementById('bonus-editor');
+  if (box) box.innerHTML = BONUS_LIST.map(bonusRowHTML).join('');
+}
+function addBonusRow() {
+  const d = new Date();
+  const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('bonus-editor').insertAdjacentHTML('beforeend', bonusRowHTML({ ym, amt: '' }));
+  const amts = document.querySelectorAll('#bonus-editor .b-amt');
+  amts[amts.length - 1].focus();
 }
 
 function closeSettings() {
@@ -2739,6 +2776,11 @@ function saveSettings() {
     MONTH_FUND = Math.round(fund);
     try { localStorage.setItem('month_fund', String(MONTH_FUND)); } catch(e) {}
   }
+  BONUS_LIST = [...document.querySelectorAll('#bonus-editor .bonus-row')].map(row => ({
+    ym:  row.querySelector('.b-ym').value,
+    amt: Math.round(parseFloat(row.querySelector('.b-amt').value) || 0),
+  })).filter(b => /^\d{4}-\d{2}$/.test(b.ym) && b.amt > 0).sort((a, b) => a.ym.localeCompare(b.ym));
+  try { localStorage.setItem('bonus_list', JSON.stringify(BONUS_LIST)); } catch(e) {}
 
   showToast('✅ 設定已儲存！', 'ok');
   closeSettings();
