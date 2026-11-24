@@ -890,7 +890,7 @@ textarea { resize: none; height: 64px; }
 // ════════════════════════════════════
 //  設定
 // ════════════════════════════════════
-const VERSION    = 'v5.9.1';
+const VERSION    = 'v5.9.2';
 const SHEET_ID   = '1lOCs8X7fzhApCoKBIp35OogqbF2Y-VVVCF3hS19q6d4';
 const GID        = '259728202';
 const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -1498,7 +1498,9 @@ function renderTotal() {
   const monthEntries = Object.entries(monthMap).sort((a,b) => a[0].localeCompare(b[0]));
   const nowD = new Date();
   const nowYM = `${nowD.getFullYear()}-${String(nowD.getMonth()+1).padStart(2,'0')}`;
-  const doneMonths = monthEntries.filter(e => e[0] < nowYM);   // 已結束的月份
+  const curYear = String(nowD.getFullYear());
+  const doneMonths = monthEntries.filter(e => e[0].startsWith(curYear) && e[0] < nowYM);   // 今年已結束的月份
+  const yearSpend = monthEntries.filter(e => e[0].startsWith(curYear)).reduce((s, e) => s + e[1], 0);
   const cumSurplus = doneMonths.reduce((s, e) => s + (fundFor(e[0]) - e[1]), 0);
   const overN = doneMonths.filter(e => e[1] > fundFor(e[0])).length;
   const bonusTotal = doneMonths.reduce((s, e) => s + bonusOf(e[0]), 0);
@@ -1509,8 +1511,8 @@ function renderTotal() {
     <div class="total-onepage">
       <div class="stat-row" style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:6px;margin:0;flex-shrink:0">
         <div class="stat-card" style="padding:7px 9px">
-          <div class="stat-lbl">💰 個人累計</div>
-          <div class="stat-val sm">${fmt(meS)}</div>
+          <div class="stat-lbl">💰 今年支出</div>
+          <div class="stat-val sm">${fmt(yearSpend)}</div>
         </div>
         <div class="stat-card" style="padding:7px 9px;border-color:${cumSurplus < 0 ? '#991b1b' : '#166534'};background:${cumSurplus < 0 ? '#2a0a0a' : '#052e16'}">
           <div class="stat-lbl" style="color:${cumSurplus < 0 ? '#fca5a5' : '#86efac'}">💵 累計${cumSurplus < 0 ? '透支' : '結餘'}</div>
